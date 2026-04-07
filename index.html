@@ -28,11 +28,26 @@ let names = [];
 async function loadNames() {
   try {
     const res = await fetch("/api/submit"); // GETで名前取得
-    if (!res.ok) throw new Error("名前リスト取得失敗");
-    names = await res.json();
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`名前リスト取得失敗: ${res.status} ${res.statusText}\n${text}`);
+    }
+
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("名前リストが空です。ExcelやPower Automateを確認してください。");
+    }
+
+    names = data;
     addRow(); // 最初の1行追加
+
   } catch (err) {
-    alert(err.message);
+    console.error(err);
+    alert(`名前リスト取得中にエラーが発生しました。\n${err.message}\n\n仮の名前で入力可能です。`);
+    // 仮のプルダウン
+    names = ["山田", "佐藤"];
+    addRow();
   }
 }
 
@@ -87,7 +102,7 @@ async function submitAll() {
     alert("送信完了！");
     location.reload();
   } catch (err) {
-    alert(err.message);
+    alert(`送信中にエラーが発生しました。\n${err.message}`);
   }
 }
 
