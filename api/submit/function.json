@@ -5,12 +5,16 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["post"]
+      "methods": ["get", "post"],
+      "route": "submit"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
     }
-  ]
+  ],
+  "disabled": false,
+  "scriptFile": "../index.js",
+  "cors": "*"
 }
