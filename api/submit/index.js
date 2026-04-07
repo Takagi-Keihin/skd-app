@@ -8,14 +8,11 @@ module.exports = async function (context, req) {
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ records: data })
     });
 
     context.res = {
         status: 200,
-        body: {
-            message: "保存完了",
-            data: data
-        }
+        body: "OK"
     };
 };
