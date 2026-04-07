@@ -1,19 +1,92 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>柔道入力</title>
-</head>
-<body>
-  <h1>乱取り入力</h1>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>柔道 乱取り入力</title>
 
-  <select>
-    <option>山田太郎</option>
-    <option>佐藤花子</option>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 400px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+
+    select, input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      font-size: 16px;
+    }
+
+    button {
+      margin-top: 20px;
+      background-color: #0078D4;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #005ea2;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>乱取り回数入力</h1>
+
+  <label for="name">名前</label>
+  <select id="name">
+    <option value="山田">山田</option>
+    <option value="佐藤">佐藤</option>
   </select>
 
-  <input type="number" placeholder="回数">
+  <label for="count">回数</label>
+  <input type="number" id="count" placeholder="回数を入力">
 
-  <button>送信</button>
+  <button onclick="sendData()">送信</button>
+
+  <script>
+    async function sendData() {
+      const name = document.getElementById("name").value;
+      const count = document.getElementById("count").value;
+
+      if (!count) {
+        alert("回数を入力してください");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ name, count })
+        });
+
+        const result = await res.json();
+
+        alert("送信成功！\n名前: " + name + "\n回数: " + count);
+
+      } catch (error) {
+        alert("送信に失敗しました");
+        console.error(error);
+      }
+    }
+  </script>
+
 </body>
 </html>
