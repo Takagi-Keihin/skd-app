@@ -4,15 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>乱取り入力</title>
-
 <style>
 body { font-family: Arial; max-width: 500px; margin: auto; padding: 20px; }
+h2 { text-align: center; }
 .row { display: flex; gap: 10px; margin-bottom: 10px; }
 select, input { flex: 1; padding: 8px; }
 button { padding: 10px; margin-top: 10px; width: 100%; }
 </style>
 </head>
-
 <body>
 
 <h2>乱取り回数入力</h2>
@@ -25,11 +24,16 @@ button { padding: 10px; margin-top: 10px; width: 100%; }
 <script>
 let names = [];
 
-// 名前リスト取得
+// 名前リスト取得（Excel名簿から）
 async function loadNames() {
-  const res = await fetch("names.json");
-  names = await res.json();
-  addRow();
+  try {
+    const res = await fetch("/api/submit"); // GETで名前取得
+    if (!res.ok) throw new Error("名前リスト取得失敗");
+    names = await res.json();
+    addRow(); // 最初の1行追加
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 // 行追加
@@ -48,10 +52,10 @@ function addRow() {
   const input = document.createElement("input");
   input.type = "number";
   input.placeholder = "回数";
+  input.min = 0;
 
   div.appendChild(select);
   div.appendChild(input);
-
   document.getElementById("formArea").appendChild(div);
 }
 
@@ -63,10 +67,7 @@ async function submitAll() {
   rows.forEach(row => {
     const name = row.children[0].value;
     const count = row.children[1].value;
-
-    if (count) {
-      data.push({ name, count });
-    }
+    if (count) data.push({ name, count });
   });
 
   if (data.length === 0) {
@@ -74,18 +75,20 @@ async function submitAll() {
     return;
   }
 
-  if (!confirm("この内容で送信しますか？")) return;
+  if (!confirm("この内容で送信しますか？\n\n" + data.map(d => d.name + ": " + d.count).join("\n"))) return;
 
-  const res = await fetch("/api/submit", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(data)
-  });
-
-  alert("送信完了！");
-  location.reload();
+  try {
+    const res = await fetch("/api/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error("送信失敗");
+    alert("送信完了！");
+    location.reload();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 // 初期化
