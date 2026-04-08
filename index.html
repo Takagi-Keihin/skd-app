@@ -6,15 +6,45 @@
 <title>乱取り回数入力</title>
 
 <style>
-  body { font-family: Arial, sans-serif; max-width: 520px; margin: auto; padding: 20px; }
-  h2 { text-align: center; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-  .nameArea { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 8px; }
-  select, input { padding: 8px; }
-  .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  body { font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 20px; }
+  h2 { text-align: center; margin-bottom: 18px; }
+
+  .row {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #fff;
+  }
+
+  .nameArea { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .inline { display: grid; grid-template-columns: 1fr 110px; gap: 10px; margin-top: 10px; align-items: center; }
+
+  select, input { padding: 8px; width: 100%; box-sizing: border-box; }
+
   .customName { display: none; }
-  .hint { font-size: 12px; color: #666; margin-top: -4px; }
-  button { padding: 10px; margin-top: 10px; width: 100%; }
+  .hint { font-size: 12px; color: #666; margin-top: -2px; }
+
+  .deleteBtn {
+    padding: 10px;
+    background: #f5f5f5;
+    border: 1px solid #bbb;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .deleteBtn:hover { background: #eee; }
+
+  button.action {
+    padding: 12px;
+    margin-top: 10px;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #bbb;
+    cursor: pointer;
+  }
+  button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  button.primary:hover { background: #1a5fd0; }
+  button.secondary { background: #fafafa; }
 </style>
 </head>
 
@@ -23,15 +53,15 @@
 
 <div id="formArea"></div>
 
-<button onclick="addRow()">＋追加</button>
-<button onclick="submitAll()">まとめて送信</button>
+<button class="action secondary" onclick="addRow()">＋追加</button>
+<button class="action primary" onclick="submitAll()">まとめて送信</button>
 
 <script>
 /* =====================================================
    ★ 必須設定：ここだけ自分のURLに変更してください
 ===================================================== */
-const NAMES_FLOW_URL  = "ここに【名前取得フロー】のHTTP POST URL";
-const SUBMIT_FLOW_URL = "ここに【送信フロー】のHTTP POST URL";
+const NAMES_FLOW_URL  = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
+const SUBMIT_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
 
 /* =====================================================
    変数
@@ -40,7 +70,63 @@ let names = [];
 const OTHER_VALUE = "__OTHER__";
 
 /* =====================================================
-   行追加（プルダウン + その他(手入力)）
+   ユーティリティ：現在の行から「確定した名前」を取得
+   - プルダウン選択ならその値
+   - その他（手入力）なら入力値
+===================================================== */
+function getChosenName(row) {
+  const select = row.querySelector(".nameSelect");
+  const custom = row.querySelector(".customName");
+  if (!select) return "";
+
+  if (select.value === OTHER_VALUE) {
+    return (custom?.value || "").trim();
+  }
+  return (select.value || "").trim();
+}
+
+/* =====================================================
+   重複選択防止（プルダウン候補を無効化）
+   - すでに他行で選択済みの名前は disabled にする
+   - ただし「自分が現在選んでいる値」は disabled にしない
+===================================================== */
+function refreshNameOptions() {
+  const rows = Array.from(document.querySelectorAll(".row"));
+
+  // 他行で選択済み（プルダウン選択のもののみ）を収集
+  const selected = new Set();
+  rows.forEach(r => {
+    const s = r.querySelector(".nameSelect");
+    if (!s) return;
+    const v = (s.value || "").trim();
+    if (v && v !== OTHER_VALUE) selected.add(v);
+  });
+
+  // 各selectのoptionを更新
+  rows.forEach(r => {
+    const s = r.querySelector(".nameSelect");
+    if (!s) return;
+
+    const current = (s.value || "").trim();
+
+    Array.from(s.options).forEach(opt => {
+      // プレースホルダ（disabled）の扱いはそのまま
+      if (opt.value === "") return;
+
+      // 「その他」は常に選べる
+      if (opt.value === OTHER_VALUE) {
+        opt.disabled = false;
+        return;
+      }
+
+      // 他行で使われている名前は無効化（ただし自分の現在値は除外）
+      opt.disabled = (selected.has(opt.value) && opt.value !== current);
+    });
+  });
+}
+
+/* =====================================================
+   行追加（削除ボタン付き）
 ===================================================== */
 function addRow() {
   const row = document.createElement("div");
@@ -53,7 +139,6 @@ function addRow() {
   const select = document.createElement("select");
   select.className = "nameSelect";
 
-  // 先頭にプレースホルダ
   const placeholder = document.createElement("option");
   placeholder.value = "";
   placeholder.text = "名前を選択…";
@@ -83,16 +168,32 @@ function addRow() {
 
   const hint = document.createElement("div");
   hint.className = "hint";
-  hint.textContent = "※「その他（手入力）」を選ぶと入力できます";
+  hint.textContent = "※同じ名前は重複選択できません（手入力も送信時に重複チェックします）";
 
-  // 回数欄
+  // 回数＆削除
+  const inline = document.createElement("div");
+  inline.className = "inline";
+
   const count = document.createElement("input");
   count.type = "number";
   count.className = "countInput";
   count.placeholder = "回数";
   count.min = 0;
 
-  // イベント：その他選択時のみ入力欄を表示
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "deleteBtn";
+  del.textContent = "削除";
+  del.addEventListener("click", () => {
+    row.remove();
+    // 行削除後、候補の無効化状態を更新
+    refreshNameOptions();
+  });
+
+  inline.appendChild(count);
+  inline.appendChild(del);
+
+  // イベント：選択変更
   select.addEventListener("change", () => {
     if (select.value === OTHER_VALUE) {
       custom.style.display = "block";
@@ -101,17 +202,28 @@ function addRow() {
       custom.style.display = "none";
       custom.value = "";
     }
+    // 選択変更のたびに重複選択防止を更新
+    refreshNameOptions();
   });
 
-  // まとめて配置
+  // 手入力変更時も（送信時重複チェックの補助）
+  custom.addEventListener("input", () => {
+    // プルダウン候補の無効化は「手入力」には影響しないが、
+    // UI状態更新の癖として呼んでも害はない
+    refreshNameOptions();
+  });
+
   nameArea.appendChild(select);
   nameArea.appendChild(custom);
   nameArea.appendChild(hint);
 
   row.appendChild(nameArea);
-  row.appendChild(count);
+  row.appendChild(inline);
 
   document.getElementById("formArea").appendChild(row);
+
+  // 新行追加後に無効化状態を反映
+  refreshNameOptions();
 }
 
 /* =====================================================
@@ -136,7 +248,6 @@ async function loadNames() {
       throw new Error("名前リストが空です");
     }
 
-    // { "名前": "..." } から抽出
     names = data.map(x => x["名前"]).filter(Boolean);
 
     if (names.length === 0) throw new Error("名前を抽出できません");
@@ -152,37 +263,39 @@ async function loadNames() {
 }
 
 /* =====================================================
-   まとめて送信（手入力を優先）
-   送信形式: [ { name: string, count: number }, ... ]
+   まとめて送信（重複送信防止：送信直前に重複チェック）
 ===================================================== */
 async function submitAll() {
-  const rows = document.querySelectorAll(".row");
+  const rows = Array.from(document.querySelectorAll(".row"));
   const payload = [];
 
   rows.forEach(row => {
-    const select = row.querySelector(".nameSelect");
-    const custom = row.querySelector(".customName");
+    const name = getChosenName(row);
     const countEl = row.querySelector(".countInput");
+    const count = countEl?.value;
 
-    const count = countEl.value;
-    if (count === "") return; // 未入力はスキップ
-
-    // 名前決定：その他なら手入力、そうでなければ select
-    let name = "";
-    if (select.value === OTHER_VALUE) {
-      name = (custom.value || "").trim();
-    } else {
-      name = (select.value || "").trim();
-    }
-
-    // 名前が空ならスキップ（またはエラーにしたいなら throw）
-    if (!name) return;
+    if (count === "") return;      // 回数未入力はスキップ
+    if (!name) return;             // 名前空はスキップ
 
     payload.push({ name, count: Number(count) });
   });
 
   if (payload.length === 0) {
     alert("入力がありません（名前・回数を確認してください）");
+    return;
+  }
+
+  // ★送信直前の重複チェック（手入力も含めて厳密にチェック）
+  const seen = new Set();
+  const dups = new Set();
+  payload.forEach(p => {
+    const key = (p.name || "").trim();
+    if (seen.has(key)) dups.add(key);
+    else seen.add(key);
+  });
+
+  if (dups.size > 0) {
+    alert("同じ名前が重複しています。修正してから送信してください:\n\n" + Array.from(dups).join("\n"));
     return;
   }
 
