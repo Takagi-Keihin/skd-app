@@ -29,32 +29,54 @@ let names = [];
 
 async function loadNames() {
   try {
-    // まずはプリフライト回避版（原因切り分けに強い）
     const res = await fetch(NAMES_FLOW_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      headers: { "Content-Type": "text/plain;charset=UTF-8" }, // まずはプリフライト回避寄り
       body: "{}"
     });
 
+    const raw = await res.text();
+    console.log("names raw response:", raw);
+
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`名前リスト取得失敗: ${res.status} ${res.statusText}\n${text}`);
+      throw new Error(`名前リスト取得失敗: ${res.status} ${res.statusText}\n${raw}`);
     }
 
-    const data = await res.json();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error("応答がJSONではありません（HTMLやテキストが返っている可能性）");
+    }
 
-    // 文字列配列でもオブジェクト配列でも吸収
-    const normalized = Array.isArray(data)
-      ? data.map(x => (typeof x === "string" ? x : (x?.name ?? x?.Name))).filter(Boolean)
-      : [];
+    // ---- 正規化：配列がどこに入っていても拾う ----
+    // 1) dataが配列 → そのまま
+    // 2) data.value / data.names / data.items が配列 → それを使う
+    let arr = null;
+    if (Array.isArray(data)) arr = data;
+    else if (Array.isArray(data.value)) arr = data.value;
+    else if (Array.isArray(data.names)) arr = data.names;
+    else if (Array.isArray(data.items)) arr = data.items;
 
-    if (normalized.length === 0) throw new Error("名前リストが空です（応答JSONの形式を確認）");
+    if (!arr || arr.length === 0) {
+      throw new Error("名前リストが空です（フローの応答JSONに配列が含まれていません）");
+    }
+
+    // 要素が文字列でもオブジェクトでも対応（name / Name など）
+    const normalized = arr
+      .map(x => (typeof x === "string" ? x : (x.name ?? x.Name ?? x.displayName ?? x.DisplayName)))
+      .filter(Boolean);
+
+    if (normalized.length === 0) {
+      throw new Error("名前リストが空です（要素のプロパティ名が想定外です）");
+    }
 
     names = normalized;
     addRow();
+
   } catch (err) {
     console.error(err);
-    alert(`名前取得エラー:\n${err.message}`);
+    alert(`名前取得エラー：\n${err.message}`);
     names = ["山田", "佐藤"];
     addRow();
   }
