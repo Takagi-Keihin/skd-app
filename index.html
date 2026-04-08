@@ -6,29 +6,15 @@
 <title>乱取り回数入力</title>
 
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    max-width: 500px;
-    margin: auto;
-    padding: 20px;
-  }
-  h2 {
-    text-align: center;
-  }
-  .row {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  select, input {
-    flex: 1;
-    padding: 8px;
-  }
-  button {
-    padding: 10px;
-    margin-top: 10px;
-    width: 100%;
-  }
+  body { font-family: Arial, sans-serif; max-width: 520px; margin: auto; padding: 20px; }
+  h2 { text-align: center; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .nameArea { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 8px; }
+  select, input { padding: 8px; }
+  .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .customName { display: none; }
+  .hint { font-size: 12px; color: #666; margin-top: -4px; }
+  button { padding: 10px; margin-top: 10px; width: 100%; }
 </style>
 </head>
 
@@ -44,26 +30,38 @@
 /* =====================================================
    ★ 必須設定：ここだけ自分のURLに変更してください
 ===================================================== */
-
-// 名前取得フロー（HTTP トリガー）の URL
-const NAMES_FLOW_URL  = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
-
-// 送信フロー（HTTP トリガー）の URL
-const SUBMIT_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
+const NAMES_FLOW_URL  = "ここに【名前取得フロー】のHTTP POST URL";
+const SUBMIT_FLOW_URL = "ここに【送信フロー】のHTTP POST URL";
 
 /* =====================================================
    変数
 ===================================================== */
 let names = [];
+const OTHER_VALUE = "__OTHER__";
 
 /* =====================================================
-   行追加
+   行追加（プルダウン + その他(手入力)）
 ===================================================== */
 function addRow() {
-  const div = document.createElement("div");
-  div.className = "row";
+  const row = document.createElement("div");
+  row.className = "row";
 
+  const nameArea = document.createElement("div");
+  nameArea.className = "nameArea";
+
+  // プルダウン
   const select = document.createElement("select");
+  select.className = "nameSelect";
+
+  // 先頭にプレースホルダ
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.text = "名前を選択…";
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  select.appendChild(placeholder);
+
+  // Excel名簿
   names.forEach(n => {
     const opt = document.createElement("option");
     opt.value = n;
@@ -71,122 +69,138 @@ function addRow() {
     select.appendChild(opt);
   });
 
-  const input = document.createElement("input");
-  input.type = "number";
-  input.placeholder = "回数";
-  input.min = 0;
+  // その他（手入力）
+  const otherOpt = document.createElement("option");
+  otherOpt.value = OTHER_VALUE;
+  otherOpt.text  = "その他（手入力）";
+  select.appendChild(otherOpt);
 
-  div.appendChild(select);
-  div.appendChild(input);
-  document.getElementById("formArea").appendChild(div);
+  // 手入力欄
+  const custom = document.createElement("input");
+  custom.type = "text";
+  custom.className = "customName";
+  custom.placeholder = "Excelに無い名前を入力";
+
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = "※「その他（手入力）」を選ぶと入力できます";
+
+  // 回数欄
+  const count = document.createElement("input");
+  count.type = "number";
+  count.className = "countInput";
+  count.placeholder = "回数";
+  count.min = 0;
+
+  // イベント：その他選択時のみ入力欄を表示
+  select.addEventListener("change", () => {
+    if (select.value === OTHER_VALUE) {
+      custom.style.display = "block";
+      custom.focus();
+    } else {
+      custom.style.display = "none";
+      custom.value = "";
+    }
+  });
+
+  // まとめて配置
+  nameArea.appendChild(select);
+  nameArea.appendChild(custom);
+  nameArea.appendChild(hint);
+
+  row.appendChild(nameArea);
+  row.appendChild(count);
+
+  document.getElementById("formArea").appendChild(row);
 }
 
 /* =====================================================
-   名前取得（★ここは絶対に送信処理と混ぜない）
-   フローの応答：
-   {
-     "names": [
-       { "名前": "さあや" },
-       { "名前": "かほ" }
-     ]
-   }
+   名前取得（フローが [ { "名前": "..."}, ... ] を返す前提）
 ===================================================== */
 async function loadNames() {
   try {
     const res = await fetch(NAMES_FLOW_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=UTF-8"
-      },
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: "{}"
     });
 
     const raw = await res.text();
     console.log("names raw response:", raw);
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = JSON.parse(raw);
 
-    // ✅ ルートが配列であることを確認
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error("名前リストが空です");
     }
 
-    // ✅ 「名前」プロパティを取り出す
-    names = data
-      .map(item => item["名前"])
-      .filter(Boolean);
+    // { "名前": "..." } から抽出
+    names = data.map(x => x["名前"]).filter(Boolean);
 
-    if (names.length === 0) {
-      throw new Error("名前を抽出できません");
-    }
+    if (names.length === 0) throw new Error("名前を抽出できません");
 
-    addRow();
+    addRow(); // 初期1行
 
   } catch (err) {
     console.error(err);
-    alert("名前取得エラー:\n" + err.message);
-
-    // フォールバック（保険）
+    alert("名前取得エラー:\n" + err.message + "\n\n仮の名前で続行します。");
     names = ["山田", "佐藤"];
     addRow();
   }
 }
 
 /* =====================================================
-   まとめて送信
-   送信する JSON:
-   [
-     { "name": "さあや", "count": 3 },
-     { "name": "かほ",   "count": 2 }
-   ]
+   まとめて送信（手入力を優先）
+   送信形式: [ { name: string, count: number }, ... ]
 ===================================================== */
 async function submitAll() {
   const rows = document.querySelectorAll(".row");
   const payload = [];
 
   rows.forEach(row => {
-    const name  = row.children[0].value;
-    const count = row.children[1].value;
+    const select = row.querySelector(".nameSelect");
+    const custom = row.querySelector(".customName");
+    const countEl = row.querySelector(".countInput");
 
-    if (count !== "") {
-      payload.push({
-        name: name,
-        count: Number(count)
-      });
+    const count = countEl.value;
+    if (count === "") return; // 未入力はスキップ
+
+    // 名前決定：その他なら手入力、そうでなければ select
+    let name = "";
+    if (select.value === OTHER_VALUE) {
+      name = (custom.value || "").trim();
+    } else {
+      name = (select.value || "").trim();
     }
+
+    // 名前が空ならスキップ（またはエラーにしたいなら throw）
+    if (!name) return;
+
+    payload.push({ name, count: Number(count) });
   });
 
   if (payload.length === 0) {
-    alert("入力がありません");
+    alert("入力がありません（名前・回数を確認してください）");
     return;
   }
 
-  if (!confirm(
-    "この内容で送信しますか？\n\n" +
-    payload.map(p => `${p.name}: ${p.count}`).join("\n")
-  )) return;
-
-  console.log("submit payload:", payload);
+  if (!confirm("この内容で送信しますか？\n\n" + payload.map(p => `${p.name}: ${p.count}`).join("\n"))) {
+    return;
+  }
 
   try {
     const res = await fetch(SUBMIT_FLOW_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
     const text = await res.text();
     console.log("submit response:", res.status, text);
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     alert("送信完了！");
     location.reload();
