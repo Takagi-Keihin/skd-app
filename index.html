@@ -98,7 +98,7 @@ async function loadNames() {
       headers: {
         "Content-Type": "text/plain;charset=UTF-8"
       },
-      body: "{}"   // ★固定
+      body: "{}"
     });
 
     const raw = await res.text();
@@ -110,16 +110,17 @@ async function loadNames() {
 
     const data = JSON.parse(raw);
 
-    if (!Array.isArray(data.names) || data.names.length === 0) {
+    // ✅ ルートが配列であることを確認
+    if (!Array.isArray(data) || data.length === 0) {
       throw new Error("名前リストが空です");
     }
 
-    // ★ フロー側の「名前」列に完全対応
-    names = data.names
-      .map(x => x["名前"])
+    // ✅ 「名前」プロパティを取り出す
+    names = data
+      .map(item => item["名前"])
       .filter(Boolean);
 
-    if (!names.length) {
+    if (names.length === 0) {
       throw new Error("名前を抽出できません");
     }
 
@@ -129,7 +130,7 @@ async function loadNames() {
     console.error(err);
     alert("名前取得エラー:\n" + err.message);
 
-    // フォールバック
+    // フォールバック（保険）
     names = ["山田", "佐藤"];
     addRow();
   }
