@@ -22,12 +22,20 @@ button { padding: 10px; margin-top: 10px; width: 100%; }
 <button onclick="submitAll()">まとめて送信</button>
 
 <script>
+const NAMES_FLOW_URL  = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
+const SUBMIT_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
+
 let names = [];
 
-// 名前リスト取得（Excel名簿から）
 async function loadNames() {
   try {
-    const res = await fetch("/api/submit"); // GETで名前取得
+    // まずはプリフライト回避版（原因切り分けに強い）
+    const res = await fetch(NAMES_FLOW_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: "{}"
+    });
+
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`名前リスト取得失敗: ${res.status} ${res.statusText}\n${text}`);
@@ -35,78 +43,49 @@ async function loadNames() {
 
     const data = await res.json();
 
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("名前リストが空です。ExcelやPower Automateを確認してください。");
-    }
+    // 文字列配列でもオブジェクト配列でも吸収
+    const normalized = Array.isArray(data)
+      ? data.map(x => (typeof x === "string" ? x : (x?.name ?? x?.Name))).filter(Boolean)
+      : [];
 
-    names = data;
-    addRow(); // 最初の1行追加
+    if (normalized.length === 0) throw new Error("名前リストが空です（応答JSONの形式を確認）");
 
+    names = normalized;
+    addRow();
   } catch (err) {
     console.error(err);
-    alert(`名前リスト取得中にエラーが発生しました。\n${err.message}\n\n仮の名前で入力可能です。`);
-    // 仮のプルダウン
+    alert(`名前取得エラー:\n${err.message}`);
     names = ["山田", "佐藤"];
     addRow();
   }
 }
 
-// 行追加
-function addRow() {
-  const div = document.createElement("div");
-  div.className = "row";
-
-  const select = document.createElement("select");
-  names.forEach(n => {
-    const opt = document.createElement("option");
-    opt.value = n;
-    opt.text = n;
-    select.appendChild(opt);
-  });
-
-  const input = document.createElement("input");
-  input.type = "number";
-  input.placeholder = "回数";
-  input.min = 0;
-
-  div.appendChild(select);
-  div.appendChild(input);
-  document.getElementById("formArea").appendChild(div);
-}
-
-// まとめて送信
 async function submitAll() {
   const rows = document.querySelectorAll(".row");
-  let data = [];
+  const data = [];
 
   rows.forEach(row => {
     const name = row.children[0].value;
     const count = row.children[1].value;
-    if (count) data.push({ name, count });
+    if (count !== "") data.push({ name, count: Number(count) }); // 0も送れる
   });
 
-  if (data.length === 0) {
-    alert("入力がありません");
-    return;
-  }
-
-  if (!confirm("この内容で送信しますか？\n\n" + data.map(d => d.name + ": " + d.count).join("\n"))) return;
+  if (!data.length) return alert("入力がありません");
 
   try {
-    const res = await fetch("/api/submit", {
+    const res = await fetch(SUBMIT_FLOW_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error("送信失敗");
+    if (!res.ok) throw new Error(await res.text());
     alert("送信完了！");
     location.reload();
   } catch (err) {
-    alert(`送信中にエラーが発生しました。\n${err.message}`);
+    alert(`送信エラー:\n${err.message}`);
   }
 }
 
-// 初期化
 loadNames();
 </script>
 
