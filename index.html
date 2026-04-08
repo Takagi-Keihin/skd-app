@@ -4,12 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>乱取り回数入力</title>
+
 <style>
-  body { font-family: Arial; max-width: 500px; margin: auto; padding: 20px; }
-  h2 { text-align: center; }
-  .row { display: flex; gap: 10px; margin-bottom: 10px; }
-  select, input { flex: 1; padding: 8px; }
-  button { padding: 10px; margin-top: 10px; width: 100%; }
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 500px;
+    margin: auto;
+    padding: 20px;
+  }
+  h2 {
+    text-align: center;
+  }
+  .row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  select, input {
+    flex: 1;
+    padding: 8px;
+  }
+  button {
+    padding: 10px;
+    margin-top: 10px;
+    width: 100%;
+  }
 </style>
 </head>
 
@@ -22,11 +41,24 @@
 <button onclick="submitAll()">まとめて送信</button>
 
 <script>
+/* =====================================================
+   ★ 必須設定：ここだけ自分のURLに変更してください
+===================================================== */
+
+// 名前取得フロー（HTTP トリガー）の URL
 const NAMES_FLOW_URL  = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
+
+// 送信フロー（HTTP トリガー）の URL
 const SUBMIT_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
 
+/* =====================================================
+   変数
+===================================================== */
 let names = [];
 
+/* =====================================================
+   行追加
+===================================================== */
 function addRow() {
   const div = document.createElement("div");
   div.className = "row";
@@ -35,7 +67,7 @@ function addRow() {
   names.forEach(n => {
     const opt = document.createElement("option");
     opt.value = n;
-    opt.text = n;
+    opt.text  = n;
     select.appendChild(opt);
   });
 
@@ -49,79 +81,126 @@ function addRow() {
   document.getElementById("formArea").appendChild(div);
 }
 
+/* =====================================================
+   名前取得（★ここは絶対に送信処理と混ぜない）
+   フローの応答：
+   {
+     "names": [
+       { "名前": "さあや" },
+       { "名前": "かほ" }
+     ]
+   }
+===================================================== */
 async function loadNames() {
-  const res = await fetch(NAMES_FLOW_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: "{}"
-  });
-  const raw = await res.text();
-  const data = JSON.parse(raw);
+  try {
+    const res = await fetch(NAMES_FLOW_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=UTF-8"
+      },
+      body: "{}"   // ★固定
+    });
 
-  // あなたの現状の応答形式: { names: [ { "名前": "..."}, ... ] }
-  names = (data.names || []).map(x => x["名前"]).filter(Boolean);
-  addRow();
+    const raw = await res.text();
+    console.log("names raw response:", raw);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = JSON.parse(raw);
+
+    if (!Array.isArray(data.names) || data.names.length === 0) {
+      throw new Error("名前リストが空です");
+    }
+
+    // ★ フロー側の「名前」列に完全対応
+    names = data.names
+      .map(x => x["名前"])
+      .filter(Boolean);
+
+    if (!names.length) {
+      throw new Error("名前を抽出できません");
+    }
+
+    addRow();
+
+  } catch (err) {
+    console.error(err);
+    alert("名前取得エラー:\n" + err.message);
+
+    // フォールバック
+    names = ["山田", "佐藤"];
+    addRow();
+  }
 }
 
-// ★ここが診断ポイント
+/* =====================================================
+   まとめて送信
+   送信する JSON:
+   [
+     { "name": "さあや", "count": 3 },
+     { "name": "かほ",   "count": 2 }
+   ]
+===================================================== */
 async function submitAll() {
-  // 1) 送信データ作成
   const rows = document.querySelectorAll(".row");
   const payload = [];
+
   rows.forEach(row => {
-    const name = row.children[0].value;
+    const name  = row.children[0].value;
     const count = row.children[1].value;
-    if (count !== "") payload.push({ name, count: Number(count) });
+
+    if (count !== "") {
+      payload.push({
+        name: name,
+        count: Number(count)
+      });
+    }
   });
 
-  if (!payload.length) return alert("入力がありません");
+  if (payload.length === 0) {
+    alert("入力がありません");
+    return;
+  }
 
-  // 2) どのURLに何を送るか必ずログ
-  console.log("SUBMIT_FLOW_URL:", SUBMIT_FLOW_URL);
-  console.log("payload:", payload);
+  if (!confirm(
+    "この内容で送信しますか？\n\n" +
+    payload.map(p => `${p.name}: ${p.count}`).join("\n")
+  )) return;
 
-  // 3) クリックで本当にここまで来ているか確認
-  alert("送信処理を開始します（Console/Network を開いて確認してください）");
-
-  // 4) まずはプリフライト回避モードで試す（原因切り分け）
-  //   - 送信フロー側は JSON を受けたいはずなので、本来は application/json が最終形
-  //   - ただし browser の preflight が原因だと POST 自体が飛ばない
-  //   - ここで text/plain で POST が飛ぶなら「preflight/CORS周り」が原因の可能性が高い 【1-f239de】
-  const USE_PLAINTEXT = false; // ←まず false のまま試し、ダメなら true にして比較
-
-  const headers = USE_PLAINTEXT
-    ? { "Content-Type": "text/plain;charset=UTF-8" }
-    : { "Content-Type": "application/json" };
-
-  const body = USE_PLAINTEXT
-    ? JSON.stringify(payload)             // text/plain で JSON文字列を送る
-    : JSON.stringify(payload);            // application/json で JSON を送る
+  console.log("submit payload:", payload);
 
   try {
     const res = await fetch(SUBMIT_FLOW_URL, {
       method: "POST",
-      headers,
-      body,
-      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
     });
 
-    console.log("submit status:", res.status, res.statusText);
+    const text = await res.text();
+    console.log("submit response:", res.status, text);
 
-    const text = await res.text().catch(() => "");
-    console.log("submit response body:", text);
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
 
     alert("送信完了！");
     location.reload();
 
-  } catch (e) {
-    console.error("submit failed:", e);
-    alert("送信エラー（Console と Network を確認）:\n" + e.message);
+  } catch (err) {
+    console.error(err);
+    alert("送信エラー:\n" + err.message);
   }
 }
 
+/* =====================================================
+   初期化
+===================================================== */
 loadNames();
 </script>
+
 </body>
 </html>
