@@ -22,23 +22,11 @@
 <button onclick="submitAll()">まとめて送信</button>
 
 <script>
-/* =========================
-   0. ★ここだけ必ず設定★
-========================= */
-// Excelから名前一覧を返すフローの HTTP POST URL
-const NAMES_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
-
-// 入力データを登録するフローの HTTP POST URL
+const NAMES_FLOW_URL  = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
 const SUBMIT_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
 
-/* =========================
-   1. 変数
-========================= */
 let names = [];
 
-/* =========================
-   2. 行を追加
-========================= */
 function addRow() {
   const div = document.createElement("div");
   div.className = "row";
@@ -61,102 +49,78 @@ function addRow() {
   document.getElementById("formArea").appendChild(div);
 }
 
-/* =========================
-   3. 名前一覧取得
-========================= */
 async function loadNames() {
-  try {
-    const res = await fetch(NAMES_FLOW_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: "{}"
-    });
+  const res = await fetch(NAMES_FLOW_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    body: "{}"
+  });
+  const raw = await res.text();
+  const data = JSON.parse(raw);
 
-    const raw = await res.text();
-    console.log("names raw response:", raw);
-
-    if (!res.ok) {
-      throw new Error(`取得失敗: ${res.status}`);
-    }
-
-    const data = JSON.parse(raw);
-
-    // Power Automate の応答でよくある形を全部吸収
-    const arr =
-      Array.isArray(data) ? data :
-      Array.isArray(data.value) ? data.value :
-      [];
-
-    if (!arr.length) {
-      throw new Error("名前リストが空です");
-    }
-
-    // Excel列名をここで拾う
-    names = arr
-      .map(x =>
-        typeof x === "string" ? x :
-        x.name ?? x.Name ?? x["氏名"] ?? x["名前"]
-      )
-      .filter(Boolean);
-
-    if (!names.length) {
-      console.log("first element:", arr[0]);
-      throw new Error("要素のプロパティ名が想定外です");
-    }
-
-    addRow();
-
-  } catch (err) {
-    console.error(err);
-    alert(`名前取得エラー：${err.message}`);
-    names = ["山田", "佐藤"]; // フォールバック
-    addRow();
-  }
+  // あなたの現状の応答形式: { names: [ { "名前": "..."}, ... ] }
+  names = (data.names || []).map(x => x["名前"]).filter(Boolean);
+  addRow();
 }
 
-/* =========================
-   4. まとめて送信
-========================= */
+// ★ここが診断ポイント
 async function submitAll() {
+  // 1) 送信データ作成
   const rows = document.querySelectorAll(".row");
-  const data = [];
-
+  const payload = [];
   rows.forEach(row => {
     const name = row.children[0].value;
     const count = row.children[1].value;
-    if (count !== "") data.push({ name, count: Number(count) });
+    if (count !== "") payload.push({ name, count: Number(count) });
   });
 
-  if (!data.length) {
-    alert("入力がありません");
-    return;
-  }
+  if (!payload.length) return alert("入力がありません");
 
-  if (!confirm(
-    "この内容で送信しますか？\n\n" +
-    data.map(d => `${d.name}: ${d.count}`).join("\n")
-  )) return;
+  // 2) どのURLに何を送るか必ずログ
+  console.log("SUBMIT_FLOW_URL:", SUBMIT_FLOW_URL);
+  console.log("payload:", payload);
+
+  // 3) クリックで本当にここまで来ているか確認
+  alert("送信処理を開始します（Console/Network を開いて確認してください）");
+
+  // 4) まずはプリフライト回避モードで試す（原因切り分け）
+  //   - 送信フロー側は JSON を受けたいはずなので、本来は application/json が最終形
+  //   - ただし browser の preflight が原因だと POST 自体が飛ばない
+  //   - ここで text/plain で POST が飛ぶなら「preflight/CORS周り」が原因の可能性が高い 【1-f239de】
+  const USE_PLAINTEXT = false; // ←まず false のまま試し、ダメなら true にして比較
+
+  const headers = USE_PLAINTEXT
+    ? { "Content-Type": "text/plain;charset=UTF-8" }
+    : { "Content-Type": "application/json" };
+
+  const body = USE_PLAINTEXT
+    ? JSON.stringify(payload)             // text/plain で JSON文字列を送る
+    : JSON.stringify(payload);            // application/json で JSON を送る
 
   try {
     const res = await fetch(SUBMIT_FLOW_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      headers,
+      body,
+      cache: "no-store",
     });
 
-    if (!res.ok) throw new Error("送信失敗");
+    console.log("submit status:", res.status, res.statusText);
+
+    const text = await res.text().catch(() => "");
+    console.log("submit response body:", text);
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
 
     alert("送信完了！");
     location.reload();
 
-  } catch (err) {
-    alert(`送信エラー：${err.message}`);
+  } catch (e) {
+    console.error("submit failed:", e);
+    alert("送信エラー（Console と Network を確認）:\n" + e.message);
   }
 }
 
-/* =========================
-   5. 初期化
-========================= */
 loadNames();
 </script>
 </body>
