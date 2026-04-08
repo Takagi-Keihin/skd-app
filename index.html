@@ -6,271 +6,93 @@
 <title>乱取り回数入力</title>
 
 <style>
-  body { font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 20px; }
-  h2 { text-align: center; margin-bottom: 18px; }
-
-  .row {
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 12px;
-    background: #fff;
-  }
-
-  .nameArea { display: grid; grid-template-columns: 1fr; gap: 8px; }
-
-  .inline {
-    display: grid;
-    grid-template-columns: 1fr 110px;
-    gap: 10px;
-    margin-top: 10px;
-    align-items: center;
-  }
-
-  select, input {
-    padding: 8px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .customName { display: none; }
-
-  .hint {
-    font-size: 12px;
-    color: #666;
-    margin-top: -2px;
-  }
-
-  .deleteBtn {
-    padding: 10px;
-    background: #f5f5f5;
-    border: 1px solid #bbb;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .deleteBtn:hover { background: #eee; }
-
-  button.action {
-    padding: 12px;
-    margin-top: 10px;
-    width: 100%;
-    border-radius: 10px;
-    border: 1px solid #bbb;
-    cursor: pointer;
-  }
-  button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
-  button.primary:hover { background: #1a5fd0; }
-  button.secondary { background: #fafafa; }
+body{font-family:Arial;max-width:560px;margin:auto;padding:16px}
+.row{border:2px solid #ddd;border-radius:12px;padding:12px;margin-bottom:12px;background:#fff;transition:.2s}
+.row.error{border-color:#e5533d;background:#fff5f4}
+.inline{display:grid;grid-template-columns:1fr 110px;gap:10px;margin-top:10px}
+@media(max-width:480px){.inline{grid-template-columns:1fr}}
+select,input{padding:10px;width:100%;font-size:16px}
+.customName{display:none}
+.deleteBtn{padding:10px;border-radius:10px}
+button{padding:14px;width:100%;margin-top:10px;border-radius:12px;font-size:16px}
 </style>
 </head>
 
 <body>
 <h2>乱取り回数入力</h2>
-
 <div id="formArea"></div>
-
-<button class="action secondary" onclick="addRow()">＋追加</button>
-<button class="action primary" onclick="submitAll()">まとめて送信</button>
+<button onclick="addRow()">＋追加</button>
+<button onclick="submitAll()">まとめて送信</button>
 
 <script>
-/* =====================================================
-   固定URL（ご指定どおり）
-===================================================== */
-const NAMES_FLOW_URL  =
-  "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
+const NAMES_FLOW_URL="https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
+const SUBMIT_FLOW_URL="https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
 
-const SUBMIT_FLOW_URL =
-  "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
+let names=[];const OTHER="__OTHER__";
 
-/* =====================================================
-   変数
-===================================================== */
-let names = [];
-const OTHER_VALUE = "__OTHER__";
-
-/* =====================================================
-   選択されている名前を取得
-===================================================== */
-function getChosenName(row) {
-  const select = row.querySelector(".nameSelect");
-  const custom = row.querySelector(".customName");
-
-  if (!select) return "";
-  if (select.value === OTHER_VALUE) {
-    return (custom?.value || "").trim();
-  }
-  return (select.value || "").trim();
+function getName(r){
+ const s=r.querySelector(".nameSelect");
+ const c=r.querySelector(".customName");
+ return s.value===OTHER?(c.value||"").trim():(s.value||"").trim();
 }
 
-/* =====================================================
-   重複選択防止（他行で選択済みの名前を disabled）
-===================================================== */
-function refreshNameOptions() {
-  const rows = Array.from(document.querySelectorAll(".row"));
-  const selected = new Set();
-
-  rows.forEach(r => {
-    const s = r.querySelector(".nameSelect");
-    if (!s) return;
-    const v = (s.value || "").trim();
-    if (v && v !== OTHER_VALUE) selected.add(v);
-  });
-
-  rows.forEach(r => {
-    const s = r.querySelector(".nameSelect");
-    if (!s) return;
-    const current = (s.value || "").trim();
-
-    Array.from(s.options).forEach(opt => {
-      if (opt.value === "" || opt.value === OTHER_VALUE) {
-        opt.disabled = false;
-        return;
-      }
-      opt.disabled = selected.has(opt.value) && opt.value !== current;
-    });
-  });
+function refresh(){
+ const rows=[...document.querySelectorAll(".row")];
+ const used=new Set();
+ rows.forEach(r=>{let v=r.querySelector(".nameSelect").value;if(v&&v!==OTHER)used.add(v)});
+ rows.forEach(r=>{
+  let s=r.querySelector(".nameSelect"),cur=s.value;
+  [...s.options].forEach(o=>{
+   if(!o.value||o.value===OTHER)return;
+   o.disabled=used.has(o.value)&&o.value!==cur;
+  })
+ });
 }
 
-/* =====================================================
-   行追加（プルダウンは常に1つ）
-===================================================== */
-function addRow() {
-  const row = document.createElement("div");
-  row.className = "row";
-
-  const nameArea = document.createElement("div");
-  nameArea.className = "nameArea";
-
-  const select = document.createElement("select");
-  select.className = "nameSelect";
-
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.text = "名前を選択…";
-  placeholder.disabled = true;
-  placeholder.selected = true;
-  select.appendChild(placeholder);
-
-  names.forEach(n => {
-    const opt = document.createElement("option");
-    opt.value = n;
-    opt.text = n;
-    select.appendChild(opt);
-  });
-
-  const otherOpt = document.createElement("option");
-  otherOpt.value = OTHER_VALUE;
-  otherOpt.text = "その他（手入力）";
-  select.appendChild(otherOpt);
-
-  const custom = document.createElement("input");
-  custom.type = "text";
-  custom.className = "customName";
-  custom.placeholder = "Excelに無い名前を入力";
-
-  const hint = document.createElement("div");
-  hint.className = "hint";
-  hint.textContent = "※同じ名前は重複選択できません";
-
-  const inline = document.createElement("div");
-  inline.className = "inline";
-
-  const count = document.createElement("input");
-  count.type = "number";
-  count.className = "countInput";
-  count.placeholder = "回数";
-  count.min = 0;
-
-  const del = document.createElement("button");
-  del.type = "button";
-  del.className = "deleteBtn";
-  del.textContent = "削除";
-  del.onclick = () => {
-    row.remove();
-    refreshNameOptions();
-  };
-
-  inline.appendChild(count);
-  inline.appendChild(del);
-
-  select.onchange = () => {
-    if (select.value === OTHER_VALUE) {
-      custom.style.display = "block";
-      custom.focus();
-    } else {
-      custom.style.display = "none";
-      custom.value = "";
-    }
-    refreshNameOptions();
-  };
-
-  nameArea.appendChild(select);
-  nameArea.appendChild(custom);
-  nameArea.appendChild(hint);
-
-  row.appendChild(nameArea);
-  row.appendChild(inline);
-
-  document.getElementById("formArea").appendChild(row);
-  refreshNameOptions();
+function addRow(){
+ const r=document.createElement("div");r.className="row";
+ const s=document.createElement("select");s.className="nameSelect";
+ s.innerHTML=`<option value="" disabled selected>名前を選択…</option>
+ ${names.map(n=>`<option value="${n}">${n}</option>`).join("")}
+ <option value="${OTHER}">その他（手入力）</option>`;
+ const c=document.createElement("input");c.className="customName";c.placeholder="Excelに無い名前を入力";
+ s.onchange=()=>{c.style.display=s.value===OTHER?"block":"none";if(s.value!==OTHER)c.value="";refresh()};
+ const inline=document.createElement("div");inline.className="inline";
+ const cnt=document.createElement("input");cnt.type="number";cnt.className="countInput";cnt.placeholder="回数";
+ const del=document.createElement("button");del.textContent="削除";del.className="deleteBtn";
+ del.onclick=()=>{r.remove();refresh()};
+ inline.append(cnt,del);r.append(s,c,inline);
+ document.getElementById("formArea").appendChild(r);refresh();
 }
 
-/* =====================================================
-   名前取得
-===================================================== */
-async function loadNames() {
-  const res = await fetch(NAMES_FLOW_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: "{}"
-  });
-  const data = JSON.parse(await res.text());
-  names = data.map(x => x["名前"]).filter(Boolean);
-  addRow();
+async function loadNames(){
+ const res=await fetch(NAMES_FLOW_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:"{}"});
+ names=(await res.json()).map(x=>x["名前"]);addRow();
 }
 
-/* =====================================================
-   送信（重複チェック込み）
-===================================================== */
-async function submitAll() {
-  const rows = Array.from(document.querySelectorAll(".row"));
-  const payload = [];
+async function submitAll(){
+ const rows=[...document.querySelectorAll(".row")];
+ let valid=true,payload=[];
+ rows.forEach(r=>{
+  r.classList.remove("error");
+  let name=getName(r),count=r.querySelector(".countInput").value;
+  if(!name||count===""){r.classList.add("error");valid=false;}
+  else payload.push({name,count:Number(count)});
+ });
+ if(!valid){alert("未入力の行があります。赤枠を確認してください。");return;}
 
-  rows.forEach(r => {
-    const name = getChosenName(r);
-    const count = r.querySelector(".countInput").value;
-    if (name && count !== "") payload.push({ name, count: Number(count) });
-  });
+ let seen=new Set();
+ for(const p of payload){if(seen.has(p.name)){alert("同じ名前が重複しています。");return;}seen.add(p.name);}
 
-  if (payload.length === 0) {
-    alert("入力がありません");
-    return;
-  }
+ const msg="【乱取り回数入力の内容】\n\n"+payload.map(p=>`${p.name}: ${p.count}`).join("\n")+"\n\n送信しますか？";
+ if(!confirm(msg))return;
 
-  const seen = new Set();
-  for (const p of payload) {
-    if (seen.has(p.name)) {
-      alert("同じ名前が重複しています。修正してください。");
-      return;
-    }
-    seen.add(p.name);
-  }
-
-  if (!confirm(payload.map(p => `${p.name}: ${p.count}`).join("\n") + "\n\n送信しますか？")) return;
-
-  await fetch(SUBMIT_FLOW_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  alert("送信完了！");
-  location.reload();
+ await fetch(SUBMIT_FLOW_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+ alert("送信完了！");
+ location.reload();
 }
 
-/* 初期化 */
 loadNames();
 </script>
-
 </body>
 </html>
