@@ -22,9 +22,7 @@ body{
  box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
-h2{
- text-align:center;
-}
+h2{text-align:center;}
 
 input,button{
  width:100%;
@@ -38,6 +36,10 @@ button{
  color:white;
  border:none;
  border-radius:5px;
+}
+
+.deleteBtn{
+ background:#d83b01;
 }
 
 table{
@@ -57,7 +59,6 @@ th{
  color:white;
 }
 </style>
-
 </head>
 
 <body>
@@ -68,8 +69,10 @@ th{
 
 <input type="date" id="targetDate">
 
-<button onclick="loadHistory()">
-表示
+<button onclick="loadHistory()">表示</button>
+
+<button class="deleteBtn" onclick="deleteHistory()">
+この日のデータを全削除
 </button>
 
 <div id="result"></div>
@@ -82,10 +85,18 @@ th{
 
 <script>
 
-// 🔥ここに参照用Power Automateの【新】HTTP POST URLを貼り付け
+// ✅ 参照フローURL
 const HISTORY_FLOW_URL =
-"https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
+"https://ここに参照フローURL";
 
+// ✅ 削除フローURL
+const DELETE_FLOW_URL =
+"https://ここに削除フローURL";
+
+
+// ==================
+// 履歴表示
+// ==================
 async function loadHistory(){
 
 const date =
@@ -100,26 +111,20 @@ try{
 
 const response = await fetch(HISTORY_FLOW_URL,{
  method:"POST",
- headers:{
-   "Content-Type":"application/json"
- },
- body:JSON.stringify({
-   date:date
- })
+ headers:{ "Content-Type":"application/json" },
+ body:JSON.stringify({date})
 });
 
 const data = await response.json();
 
 console.log(data);
 
-// データなし
 if(!data || data.length === 0){
  document.getElementById("result").innerHTML =
  "<p>該当データがありません</p>";
  return;
 }
 
-// テーブル生成
 let html="<table>";
 html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
 
@@ -129,8 +134,7 @@ data.forEach(item=>{
  <td>${item["名前"]}</td>
  <td>${item["回数"]}</td>
  <td>${item["メダル"]}</td>
- </tr>
- `;
+ </tr>`;
 });
 
 html+="</table>";
@@ -139,7 +143,47 @@ document.getElementById("result").innerHTML=html;
 
 }catch(error){
 
-alert("フロー呼び出しエラー");
+alert("取得エラー");
+console.log(error);
+
+}
+
+}
+
+
+// ==================
+// 日付全削除
+// ==================
+async function deleteHistory(){
+
+const date =
+document.getElementById("targetDate").value;
+
+if(!date){
+ alert("日付を選択してください");
+ return;
+}
+
+if(!confirm("この日のデータを全削除しますか？")){
+ return;
+}
+
+try{
+
+await fetch(DELETE_FLOW_URL,{
+ method:"POST",
+ headers:{ "Content-Type":"application/json" },
+ body:JSON.stringify({date})
+});
+
+alert("削除しました");
+
+// 再読込
+loadHistory();
+
+}catch(error){
+
+alert("削除エラー");
 console.log(error);
 
 }
