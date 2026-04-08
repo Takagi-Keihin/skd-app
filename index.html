@@ -22,11 +22,39 @@ button { padding: 10px; margin-top: 10px; width: 100%; }
 <button onclick="submitAll()">まとめて送信</button>
 
 <script>
-const NAMES_FLOW_URL  = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
-const SUBMIT_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
-
+/* =========================
+   1. グローバル変数
+========================= */
 let names = [];
 
+/* =========================
+   2. 行追加（← 先に定義）
+========================= */
+function addRow() {
+  const div = document.createElement("div");
+  div.className = "row";
+
+  const select = document.createElement("select");
+  names.forEach(n => {
+    const opt = document.createElement("option");
+    opt.value = n;
+    opt.text = n;
+    select.appendChild(opt);
+  });
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.placeholder = "回数";
+  input.min = 0;
+
+  div.appendChild(select);
+  div.appendChild(input);
+  document.getElementById("formArea").appendChild(div);
+}
+
+/* =========================
+   3. 名前取得
+========================= */
 async function loadNames() {
   try {
     const res = await fetch(NAMES_FLOW_URL, {
@@ -38,79 +66,47 @@ async function loadNames() {
     const raw = await res.text();
     console.log("names raw response:", raw);
 
-    if (!res.ok) throw new Error(`取得失敗: ${res.status} ${res.statusText}\n${raw}`);
+    let data = JSON.parse(raw);
 
-    let data;
-    try { data = JSON.parse(raw); }
-    catch { throw new Error("応答がJSONではありません"); }
-
-    // ---- 1) 配列の場所をできるだけ拾う ----
     const arr =
       Array.isArray(data) ? data :
       Array.isArray(data.value) ? data.value :
-      Array.isArray(data.names) ? data.names :
-      Array.isArray(data.items) ? data.items :
-      Array.isArray(data.body?.value) ? data.body.value :
-      Array.isArray(data.body) ? data.body :
-      null;
+      [];
 
-    if (!arr || arr.length === 0) {
-      throw new Error("名前リストが空です（応答JSON内に配列が見つかりません）");
+    if (!arr.length) throw new Error("名前リストが空です");
+
+    // ★ ここで names に代入
+    names = arr.map(x =>
+      typeof x === "string"
+        ? x
+        : x.name ?? x.Name ?? x["氏名"] ?? x["名前"]
+    ).filter(Boolean);
+
+    if (!names.length) {
+      console.log("first element:", arr[0]);
+      throw new Error("要素のプロパティ名が想定外です");
     }
 
-    // ---- 2) 要素が文字列ならそのまま ----
-    if (typeof arr[0] === "string") {
-      names = arr.filter(Boolean);
-      addRow();
-      return;
-    }
+    addRow(); // ← ここで初めて呼ぶ
 
-    // ---- 3) 要素がオブジェクトの場合：名前っぽいキーを優先 ----
-    const preferredKeys = [
-      "name","Name","displayName","DisplayName",
-      "fullName","FullName",
-      "氏名","名前","お名前","選手名","選手","参加者","メンバー","ユーザー名","UserName","userName",
-      "Title","title"
-    ];
-
-    // 1行目のキー一覧から、優先キーが存在するか探す
-    const firstKeys = Object.keys(arr[0] || {});
-    const pickedKey = preferredKeys.find(k => firstKeys.includes(k));
-
-    // ---- 4) 優先キーがなければ「最初の文字列フィールド」を採用 ----
-    const fallbackKey = pickedKey ?? firstKeys.find(k => typeof arr[0][k] === "string");
-
-    if (!fallbackKey) {
-      console.log("first element keys:", firstKeys);
-      console.log("first element sample:", arr[0]);
-      throw new Error("要素のプロパティ名が想定外です（文字列の列が見つかりません）");
-    }
-
-    console.log("using key for name:", fallbackKey);
-
-    const normalized = arr
-      .map(x => x?.[fallbackKey])
-      .filter(v => typeof v === "string" && v.trim() !== "")
-      .map(v => v.trim());
-
-    if (normalized.length === 0) {
-      console.log("first element keys:", firstKeys);
-      console.log("first element sample:", arr[0]);
-      throw new Error("名前が抽出できません（列は見つかったが中身が空/非文字列）");
-    }
-
-    names = normalized;
-    addRow();
-
-  } catch (err) {
-    console.error(err);
-    alert(`名前取得エラー：\n${err.message}`);
+  } catch (e) {
+    console.error(e);
+    alert(`名前取得エラー：${e.message}`);
     names = ["山田", "佐藤"];
     addRow();
   }
 }
-``
 
+/* =========================
+   4. 送信処理
+========================= */
+async function submitAll() {
+  // （省略：これは既存でOK）
+}
+
+/* =========================
+   5. 初期化（最後）
+========================= */
 loadNames();
 </script>
 
