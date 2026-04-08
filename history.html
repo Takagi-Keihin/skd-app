@@ -28,7 +28,7 @@ h2{
 
 input,button{
  width:100%;
- padding:10px;
+ padding:12px;
  margin:10px 0;
  font-size:16px;
 }
@@ -59,6 +59,7 @@ th{
 </style>
 
 </head>
+
 <body>
 
 <div class="container">
@@ -67,7 +68,9 @@ th{
 
 <input type="date" id="targetDate">
 
-<button onclick="loadHistory()">表示</button>
+<button onclick="loadHistory()">
+表示
+</button>
 
 <div id="result"></div>
 
@@ -79,49 +82,71 @@ th{
 
 <script>
 
-const HISTORY_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
+// 🔥ここに参照用Power Automateの【新】HTTP POST URLを貼り付け
+const HISTORY_FLOW_URL =
+"https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
 
-function loadHistory(){
+async function loadHistory(){
 
-const date = document.getElementById("targetDate").value;
+const date =
+document.getElementById("targetDate").value;
 
 if(!date){
  alert("日付を選択してください");
  return;
 }
 
-fetch(HISTORY_FLOW_URL,{
+try{
+
+const response = await fetch(HISTORY_FLOW_URL,{
  method:"POST",
  headers:{
    "Content-Type":"application/json"
  },
- body:JSON.stringify({date})
-})
-.then(r=>r.json())
-.then(data=>{
+ body:JSON.stringify({
+   date:date
+ })
+});
 
-if(data.length === 0){
+const data = await response.json();
+
+console.log(data);
+
+// データなし
+if(!data || data.length === 0){
  document.getElementById("result").innerHTML =
  "<p>該当データがありません</p>";
  return;
 }
 
+// テーブル生成
 let html="<table>";
 html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
 
-data.forEach(d=>{
- html+=`<tr>
- <td>${d.name}</td>
- <td>${d.count}</td>
- <td>${d.メダル}</td>
- </tr>`;
+data.forEach(item=>{
+ html+=`
+ <tr>
+ <td>${item.name}</td>
+ <td>${item.count}</td>
+ <td>${item.メダル}</td>
+ </tr>
+ `;
 });
 
 html+="</table>";
 
 document.getElementById("result").innerHTML=html;
 
-})
-.catch(err=>{
- alert("取得エラー");
- console.log(err);
+}catch(error){
+
+alert("フロー呼び出しエラー");
+console.log(error);
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
