@@ -18,12 +18,28 @@
   }
 
   .nameArea { display: grid; grid-template-columns: 1fr; gap: 8px; }
-  .inline { display: grid; grid-template-columns: 1fr 110px; gap: 10px; margin-top: 10px; align-items: center; }
 
-  select, input { padding: 8px; width: 100%; box-sizing: border-box; }
+  .inline {
+    display: grid;
+    grid-template-columns: 1fr 110px;
+    gap: 10px;
+    margin-top: 10px;
+    align-items: center;
+  }
+
+  select, input {
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
 
   .customName { display: none; }
-  .hint { font-size: 12px; color: #666; margin-top: -2px; }
+
+  .hint {
+    font-size: 12px;
+    color: #666;
+    margin-top: -2px;
+  }
 
   .deleteBtn {
     padding: 10px;
@@ -58,10 +74,13 @@
 
 <script>
 /* =====================================================
-   ★ 必須設定：ここだけ自分のURLに変更してください
+   固定URL（ご指定どおり）
 ===================================================== */
-const NAMES_FLOW_URL  = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
-const SUBMIT_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
+const NAMES_FLOW_URL  =
+  "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
+
+const SUBMIT_FLOW_URL =
+  "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
 
 /* =====================================================
    変数
@@ -70,15 +89,13 @@ let names = [];
 const OTHER_VALUE = "__OTHER__";
 
 /* =====================================================
-   ユーティリティ：現在の行から「確定した名前」を取得
-   - プルダウン選択ならその値
-   - その他（手入力）なら入力値
+   選択されている名前を取得
 ===================================================== */
 function getChosenName(row) {
   const select = row.querySelector(".nameSelect");
   const custom = row.querySelector(".customName");
-  if (!select) return "";
 
+  if (!select) return "";
   if (select.value === OTHER_VALUE) {
     return (custom?.value || "").trim();
   }
@@ -86,15 +103,12 @@ function getChosenName(row) {
 }
 
 /* =====================================================
-   重複選択防止（プルダウン候補を無効化）
-   - すでに他行で選択済みの名前は disabled にする
-   - ただし「自分が現在選んでいる値」は disabled にしない
+   重複選択防止（他行で選択済みの名前を disabled）
 ===================================================== */
 function refreshNameOptions() {
   const rows = Array.from(document.querySelectorAll(".row"));
-
-  // 他行で選択済み（プルダウン選択のもののみ）を収集
   const selected = new Set();
+
   rows.forEach(r => {
     const s = r.querySelector(".nameSelect");
     if (!s) return;
@@ -102,31 +116,23 @@ function refreshNameOptions() {
     if (v && v !== OTHER_VALUE) selected.add(v);
   });
 
-  // 各selectのoptionを更新
   rows.forEach(r => {
     const s = r.querySelector(".nameSelect");
     if (!s) return;
-
     const current = (s.value || "").trim();
 
     Array.from(s.options).forEach(opt => {
-      // プレースホルダ（disabled）の扱いはそのまま
-      if (opt.value === "") return;
-
-      // 「その他」は常に選べる
-      if (opt.value === OTHER_VALUE) {
+      if (opt.value === "" || opt.value === OTHER_VALUE) {
         opt.disabled = false;
         return;
       }
-
-      // 他行で使われている名前は無効化（ただし自分の現在値は除外）
-      opt.disabled = (selected.has(opt.value) && opt.value !== current);
+      opt.disabled = selected.has(opt.value) && opt.value !== current;
     });
   });
 }
 
 /* =====================================================
-   行追加（削除ボタン付き）
+   行追加（プルダウンは常に1つ）
 ===================================================== */
 function addRow() {
   const row = document.createElement("div");
@@ -135,7 +141,6 @@ function addRow() {
   const nameArea = document.createElement("div");
   nameArea.className = "nameArea";
 
-  // プルダウン
   const select = document.createElement("select");
   select.className = "nameSelect";
 
@@ -146,21 +151,18 @@ function addRow() {
   placeholder.selected = true;
   select.appendChild(placeholder);
 
-  // Excel名簿
   names.forEach(n => {
     const opt = document.createElement("option");
     opt.value = n;
-    opt.text  = n;
+    opt.text = n;
     select.appendChild(opt);
   });
 
-  // その他（手入力）
   const otherOpt = document.createElement("option");
   otherOpt.value = OTHER_VALUE;
-  otherOpt.text  = "その他（手入力）";
+  otherOpt.text = "その他（手入力）";
   select.appendChild(otherOpt);
 
-  // 手入力欄
   const custom = document.createElement("input");
   custom.type = "text";
   custom.className = "customName";
@@ -168,9 +170,8 @@ function addRow() {
 
   const hint = document.createElement("div");
   hint.className = "hint";
-  hint.textContent = "※同じ名前は重複選択できません（手入力も送信時に重複チェックします）";
+  hint.textContent = "※同じ名前は重複選択できません";
 
-  // 回数＆削除
   const inline = document.createElement("div");
   inline.className = "inline";
 
@@ -184,17 +185,15 @@ function addRow() {
   del.type = "button";
   del.className = "deleteBtn";
   del.textContent = "削除";
-  del.addEventListener("click", () => {
+  del.onclick = () => {
     row.remove();
-    // 行削除後、候補の無効化状態を更新
     refreshNameOptions();
-  });
+  };
 
   inline.appendChild(count);
   inline.appendChild(del);
 
-  // イベント：選択変更
-  select.addEventListener("change", () => {
+  select.onchange = () => {
     if (select.value === OTHER_VALUE) {
       custom.style.display = "block";
       custom.focus();
@@ -202,16 +201,8 @@ function addRow() {
       custom.style.display = "none";
       custom.value = "";
     }
-    // 選択変更のたびに重複選択防止を更新
     refreshNameOptions();
-  });
-
-  // 手入力変更時も（送信時重複チェックの補助）
-  custom.addEventListener("input", () => {
-    // プルダウン候補の無効化は「手入力」には影響しないが、
-    // UI状態更新の癖として呼んでも害はない
-    refreshNameOptions();
-  });
+  };
 
   nameArea.appendChild(select);
   nameArea.appendChild(custom);
@@ -221,112 +212,63 @@ function addRow() {
   row.appendChild(inline);
 
   document.getElementById("formArea").appendChild(row);
-
-  // 新行追加後に無効化状態を反映
   refreshNameOptions();
 }
 
 /* =====================================================
-   名前取得（フローが [ { "名前": "..."}, ... ] を返す前提）
+   名前取得
 ===================================================== */
 async function loadNames() {
-  try {
-    const res = await fetch(NAMES_FLOW_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: "{}"
-    });
-
-    const raw = await res.text();
-    console.log("names raw response:", raw);
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const data = JSON.parse(raw);
-
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("名前リストが空です");
-    }
-
-    names = data.map(x => x["名前"]).filter(Boolean);
-
-    if (names.length === 0) throw new Error("名前を抽出できません");
-
-    addRow(); // 初期1行
-
-  } catch (err) {
-    console.error(err);
-    alert("名前取得エラー:\n" + err.message + "\n\n仮の名前で続行します。");
-    names = ["山田", "佐藤"];
-    addRow();
-  }
+  const res = await fetch(NAMES_FLOW_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    body: "{}"
+  });
+  const data = JSON.parse(await res.text());
+  names = data.map(x => x["名前"]).filter(Boolean);
+  addRow();
 }
 
 /* =====================================================
-   まとめて送信（重複送信防止：送信直前に重複チェック）
+   送信（重複チェック込み）
 ===================================================== */
 async function submitAll() {
   const rows = Array.from(document.querySelectorAll(".row"));
   const payload = [];
 
-  rows.forEach(row => {
-    const name = getChosenName(row);
-    const countEl = row.querySelector(".countInput");
-    const count = countEl?.value;
-
-    if (count === "") return;      // 回数未入力はスキップ
-    if (!name) return;             // 名前空はスキップ
-
-    payload.push({ name, count: Number(count) });
+  rows.forEach(r => {
+    const name = getChosenName(r);
+    const count = r.querySelector(".countInput").value;
+    if (name && count !== "") payload.push({ name, count: Number(count) });
   });
 
   if (payload.length === 0) {
-    alert("入力がありません（名前・回数を確認してください）");
+    alert("入力がありません");
     return;
   }
 
-  // ★送信直前の重複チェック（手入力も含めて厳密にチェック）
   const seen = new Set();
-  const dups = new Set();
-  payload.forEach(p => {
-    const key = (p.name || "").trim();
-    if (seen.has(key)) dups.add(key);
-    else seen.add(key);
+  for (const p of payload) {
+    if (seen.has(p.name)) {
+      alert("同じ名前が重複しています。修正してください。");
+      return;
+    }
+    seen.add(p.name);
+  }
+
+  if (!confirm(payload.map(p => `${p.name}: ${p.count}`).join("\n") + "\n\n送信しますか？")) return;
+
+  await fetch(SUBMIT_FLOW_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
   });
 
-  if (dups.size > 0) {
-    alert("同じ名前が重複しています。修正してから送信してください:\n\n" + Array.from(dups).join("\n"));
-    return;
-  }
-
-  if (!confirm("この内容で送信しますか？\n\n" + payload.map(p => `${p.name}: ${p.count}`).join("\n"))) {
-    return;
-  }
-
-  try {
-    const res = await fetch(SUBMIT_FLOW_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const text = await res.text();
-    console.log("submit response:", res.status, text);
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    alert("送信完了！");
-    location.reload();
-
-  } catch (err) {
-    console.error(err);
-    alert("送信エラー:\n" + err.message);
-  }
+  alert("送信完了！");
+  location.reload();
 }
 
-/* =====================================================
-   初期化
-===================================================== */
+/* 初期化 */
 loadNames();
 </script>
 
