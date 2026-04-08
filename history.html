@@ -1,3 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>履歴表示</title>
+
+<style>
+body{
+ font-family:sans-serif;
+ margin:0;
+ padding:10px;
+ background:#f4f6f9;
+}
+
+.container{
+ max-width:600px;
+ margin:auto;
+ background:white;
+ padding:15px;
+ border-radius:10px;
+ box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+h2{
+ text-align:center;
+}
+
+input,button{
+ width:100%;
+ padding:10px;
+ margin:10px 0;
+ font-size:16px;
+}
+
+button{
+ background:#0078d4;
+ color:white;
+ border:none;
+ border-radius:5px;
+}
+
+table{
+ width:100%;
+ border-collapse:collapse;
+ margin-top:15px;
+}
+
+th,td{
+ border:1px solid #ddd;
+ padding:8px;
+ text-align:center;
+}
+
+th{
+ background:#0078d4;
+ color:white;
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+<h2>履歴表示</h2>
+
 <input type="date" id="targetDate">
-<button onclick="loadData()">表示</button>
+
+<button onclick="loadHistory()">表示</button>
+
 <div id="result"></div>
+
+<button onclick="location.href='index.html'">
+入力画面に戻る
+</button>
+
+</div>
+
+<script>
+
+const HISTORY_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
+
+function loadHistory(){
+
+const date = document.getElementById("targetDate").value;
+
+if(!date){
+ alert("日付を選択してください");
+ return;
+}
+
+fetch(HISTORY_FLOW_URL,{
+ method:"POST",
+ headers:{
+   "Content-Type":"application/json"
+ },
+ body:JSON.stringify({date})
+})
+.then(r=>r.json())
+.then(data=>{
+
+if(data.length === 0){
+ document.getElementById("result").innerHTML =
+ "<p>該当データがありません</p>";
+ return;
+}
+
+let html="<table>";
+html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
+
+data.forEach(d=>{
+ html+=`<tr>
+ <td>${d.name}</td>
+ <td>${d.count}</td>
+ <td>${d.メダル}</td>
+ </tr>`;
+});
+
+html+="</table>";
+
+document.getElementById("result").innerHTML=html;
+
+})
+.catch(err=>{
+ alert("取得エラー");
+ console.log(err);
