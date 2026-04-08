@@ -126,9 +126,9 @@ html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
 data.forEach(item=>{
  html+=`
  <tr>
- <td>${item.name}</td>
- <td>${item.count}</td>
- <td>${item.メダル}</td>
+ <td>${item["名前"]}</td>
+ <td>${item["回数"]}</td>
+ <td>${item["メダル"]}</td>
  </tr>
  `;
 });
