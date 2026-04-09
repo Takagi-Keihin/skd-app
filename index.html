@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
+<meta />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>乱取り回数入力</title>
 
 <style>
   :root{
-    --blue-light:#bfe3ff;   /* 追加ボタン（薄い青） */
-    --blue-dark:#1f6feb;    /* 送信ボタン（濃い青） */
+    --blue-light:#bfe3ff;
+    --blue-dark:#1f6feb;
     --blue-dark-hover:#1a5fd0;
 
     --border:#d9d9d9;
@@ -84,7 +84,6 @@
   }
   .deleteBtn:hover{ background:#eee; }
 
-  /* ボタン */
   .actionBtn{
     padding: 14px;
     width: 100%;
@@ -111,6 +110,14 @@
     opacity:.6;
     cursor:not-allowed;
   }
+
+  /* 履歴ボタン */
+  .historyBtn{
+    background:#0f766e;         /* teal */
+    border-color:#0f766e;
+    color:#fff;
+  }
+  .historyBtn:hover{ filter: brightness(0.95); }
 
   /* ===== モーダル共通 ===== */
   .overlay{
@@ -168,11 +175,9 @@
     color:#fff;
   }
 
-  /* エラーモーダルだけ色味 */
   .modal.error h3{ color: var(--error); }
   .modal.success h3{ color: #1a7f37; }
 
-  /* 小さな補助テキスト */
   .small{
     margin-top: 10px;
     font-size: 12px;
@@ -190,9 +195,12 @@
   <button class="actionBtn addBtn" onclick="addRow()">＋追加</button>
   <button id="sendButton" class="actionBtn sendBtn" onclick="submitAll()">まとめて送信</button>
 
-  <div class="small">※「その他（手入力）」を選ぶとExcelに無い名前も入力できます</div>
+  <!-- ✅ history.html へのリンクをボタンで追加 -->
+  <button class="actionBtn historyBtn" onclick="location.href='history.html'">履歴を見る</button>
 
-  <!-- ✅ 確認モーダル（confirm() 不使用＝ドメイン表示なし） -->
+  <div class="small">※「その他（手入力）」を選ぶと一覧に無い名前も入力できます</div>
+
+  <!-- ✅ 確認モーダル -->
   <div id="confirmOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <div class="modal">
       <h3 id="confirmTitle">乱取り回数入力の内容</h3>
@@ -204,7 +212,7 @@
     </div>
   </div>
 
-  <!-- ✅ メッセージモーダル（alert() 不使用＝ドメイン表示なし） -->
+  <!-- ✅ メッセージモーダル -->
   <div id="messageOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="messageTitle">
     <div id="messageModal" class="modal">
       <h3 id="messageTitle">メッセージ</h3>
@@ -217,11 +225,15 @@
 
 <script>
 /* =====================================================
-   固定URL（ご指定どおり）
+   固定URL
 ===================================================== */
 const NAMES_FLOW_URL  =
   "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
 
+/* ★重要：ここは「SharePointに書き込む」送信フローURLにしてください
+   - フロー自体をExcel→SharePointに置き換えて同じURLのまま運用しているなら変更不要
+   - 別フローを作ったならURL差し替えが必要
+*/
 const SUBMIT_FLOW_URL =
   "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
 
@@ -230,12 +242,21 @@ const SUBMIT_FLOW_URL =
 ===================================================== */
 let names = [];
 const OTHER_VALUE = "__OTHER__";
-let pendingPayload = [];   // 確認モーダルで送る直前のデータ
+let pendingPayload = [];
+let namesFetchController = null;
+
+/* =====================================================
+   初期化ガード（名前が2つ出る/行が2つできる問題を潰す）
+===================================================== */
+function resetFormArea(){
+  const area = document.getElementById("formArea");
+  area.innerHTML = ""; // 既存行を全消ししてから作り直す
+}
 
 /* =====================================================
    モーダル（メッセージ）
 ===================================================== */
-function showMessage(title, body, type /* "error"|"success"|"" */){
+function showMessage(title, body, type){
   const overlay = document.getElementById("messageOverlay");
   const modal = document.getElementById("messageModal");
   document.getElementById("messageTitle").textContent = title;
@@ -264,10 +285,6 @@ function closeConfirm(){
   pendingPayload = [];
 }
 
-/* ESCでモーダル閉じる（利便性）
-   - 確認はキャンセル扱い
-   - メッセージは閉じる
-*/
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (document.getElementById("confirmOverlay").style.display === "flex") closeConfirm();
@@ -275,7 +292,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 /* =====================================================
-   選択されている名前を取得（プルダウン or 手入力）
+   選択されている名前を取得
 ===================================================== */
 function getChosenName(row){
   const select = row.querySelector(".nameSelect");
@@ -286,7 +303,7 @@ function getChosenName(row){
 }
 
 /* =====================================================
-   重複選択防止（他行で選択済みの名前を disabled）
+   重複選択防止
 ===================================================== */
 function refreshNameOptions(){
   const rows = Array.from(document.querySelectorAll(".row"));
@@ -349,7 +366,7 @@ function addRow(){
   const custom = document.createElement("input");
   custom.type = "text";
   custom.className = "customName";
-  custom.placeholder = "Excelに無い名前を入力";
+  custom.placeholder = "一覧に無い名前を入力";
 
   const hint = document.createElement("div");
   hint.className = "hint";
@@ -373,7 +390,6 @@ function addRow(){
     refreshNameOptions();
   };
 
-  // 入力したら赤枠解除を自然に
   function clearErrorOnEdit(){
     if (row.classList.contains("error")) row.classList.remove("error");
   }
@@ -407,14 +423,21 @@ function addRow(){
 }
 
 /* =====================================================
-   名前取得（フローが [ { "名前": "..."}, ... ] を返す前提）
+   名前取得
+   - 旧: [ { "名前": "..."}, ... ]
+   - 新: [ { "Name": "..."}, ... ] や Title の可能性も吸収
 ===================================================== */
 async function loadNames(){
+  // 競合対策：前回のfetchが残っていたら中断
+  if (namesFetchController) namesFetchController.abort();
+  namesFetchController = new AbortController();
+
   try{
     const res = await fetch(NAMES_FLOW_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: "{}"
+      body: "{}",
+      signal: namesFetchController.signal
     });
 
     if (!res.ok) {
@@ -428,23 +451,37 @@ async function loadNames(){
       throw new Error("名前リストが空です");
     }
 
-    names = data.map(x => x["名前"]).filter(Boolean);
+    // どのキーで返ってきても吸収
+    const extracted = data
+      .map(x => (x?.["名前"] ?? x?.["Name"] ?? x?.["Title"] ?? "").toString().trim())
+      .filter(Boolean);
+
+    // 重複排除（名前の選択が増殖する系の原因を潰す）
+    names = Array.from(new Set(extracted));
 
     if (names.length === 0) throw new Error("名前を抽出できません");
 
-    addRow(); // 初期1行
+    // 初期表示は1行だけに固定
+    resetFormArea();
+    addRow();
 
   }catch(e){
+    if (e.name === "AbortError") return; // 中断は無視
     console.error(e);
-    // ドメインが出ないメッセージモーダル
     showMessage("名前取得エラー", String(e.message || e), "error");
+
+    // フォールバック
     names = ["山田","佐藤"];
+    resetFormArea();
     addRow();
+  }finally{
+    namesFetchController = null;
   }
 }
 
 /* =====================================================
    送信前チェック → 確認モーダル表示
+   ★SharePoint向けに payload を {Name, Count} に寄せる
 ===================================================== */
 function submitAll(){
   const rows = Array.from(document.querySelectorAll(".row"));
@@ -457,14 +494,14 @@ function submitAll(){
     const name = getChosenName(r);
     const count = r.querySelector(".countInput")?.value ?? "";
 
-    // 未入力判定（名前 or 回数）
     if (!name || count === "") {
       r.classList.add("error");
       valid = false;
       return;
     }
 
-    payload.push({ name, count: Number(count) });
+    // SharePoint寄せ：Name / Count
+    payload.push({ Name: name, Count: Number(count) });
   });
 
   if (!valid) {
@@ -476,7 +513,7 @@ function submitAll(){
   const seen = new Set();
   const dups = new Set();
   payload.forEach(p => {
-    const key = (p.name || "").trim();
+    const key = (p.Name || "").trim();
     if (seen.has(key)) dups.add(key);
     else seen.add(key);
   });
@@ -486,15 +523,14 @@ function submitAll(){
     return;
   }
 
-  // 確認モーダル表示
   pendingPayload = payload;
 
-  const confirmText = payload.map(p => `${p.name}: ${p.count}`).join("\n");
+  const confirmText = payload.map(p => `${p.Name}: ${p.Count}`).join("\n");
   openConfirm(confirmText);
 }
 
 /* =====================================================
-   確認モーダルで「送信」押下 → 実送信
+   確認モーダルで「送信」→ 実送信
 ===================================================== */
 async function confirmSend(){
   if (!pendingPayload || pendingPayload.length === 0) {
@@ -502,7 +538,6 @@ async function confirmSend(){
     return;
   }
 
-  // 二重送信防止
   const btn = document.getElementById("sendButton");
   btn.disabled = true;
 
@@ -518,8 +553,6 @@ async function confirmSend(){
 
     closeConfirm();
     showMessage("送信完了", "送信しました。", "success");
-
-    // 少し見せてからリロード（alertを使わない）
     setTimeout(() => location.reload(), 700);
 
   }catch(e){
@@ -530,8 +563,16 @@ async function confirmSend(){
   }
 }
 
-/* 初期化 */
-loadNames();
+/* =====================================================
+   初期化：二重初期化を防止
+===================================================== */
+function init(){
+  if (window.__appInitialized) return;
+  window.__appInitialized = true;
+  loadNames();
+}
+
+document.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
 </html>
