@@ -12,7 +12,6 @@ body{
  padding:10px;
  background:#f4f6f9;
 }
-
 .container{
  max-width:600px;
  margin:auto;
@@ -21,39 +20,32 @@ body{
  border-radius:10px;
  box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
-
 h2{text-align:center;}
-
 input,button{
  width:100%;
  padding:12px;
  margin:10px 0;
  font-size:16px;
 }
-
 button{
  background:#0078d4;
  color:white;
  border:none;
  border-radius:5px;
 }
-
 .deleteBtn{
  background:#d83b01;
 }
-
 table{
  width:100%;
  border-collapse:collapse;
  margin-top:15px;
 }
-
 th,td{
  border:1px solid #ddd;
  padding:8px;
  text-align:center;
 }
-
 th{
  background:#0078d4;
  color:white;
@@ -62,7 +54,6 @@ th{
 </head>
 
 <body>
-
 <div class="container">
 
 <h2>履歴表示</h2>
@@ -85,24 +76,23 @@ th{
 
 <script>
 
-// ✅ 参照フローURL
-const HISTORY_FLOW_URL =
-"https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
+// SharePoint履歴取得フロー
+const HISTORY_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
 
-// ✅ 削除フローURL
-const DELETE_FLOW_URL =
-"https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d82d670c9b54bd495d88d617274424e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nVTeoB1zSrFJvl5Wb8G4QmNwBLY1MqHVv9VFvYfizG0";
+// SharePoint削除フロー
+const DELETE_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d82d670c9b54bd495d88d617274424e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nVTeoB1zSrFJvl5Wb8G4QmNwBLY1MqHVv9VFvYfizG0";
+
 
 
 // ==================
-// 履歴表示
+// 履歴表示（SharePoint対応）
 // ==================
 async function loadHistory(){
 
-const date =
+const selectedDate =
 document.getElementById("targetDate").value;
 
-if(!date){
+if(!selectedDate){
  alert("日付を選択してください");
  return;
 }
@@ -112,14 +102,14 @@ try{
 const response = await fetch(HISTORY_FLOW_URL,{
  method:"POST",
  headers:{ "Content-Type":"application/json" },
- body:JSON.stringify({date})
+ body:JSON.stringify({date:selectedDate})
 });
 
 const data = await response.json();
 
 console.log(data);
 
-if(!data || data.length === 0){
+if(!data.value || data.value.length === 0){
  document.getElementById("result").innerHTML =
  "<p>該当データがありません</p>";
  return;
@@ -128,13 +118,22 @@ if(!data || data.length === 0){
 let html="<table>";
 html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
 
-data.forEach(item=>{
+data.value.forEach(item=>{
+
+// SharePoint DateTime → yyyy-mm-ddへ変換
+const spDate = new Date(item.Date)
+                  .toISOString()
+                  .split('T')[0];
+
+if(spDate === selectedDate){
+
  html+=`
  <tr>
- <td>${item["名前"]}</td>
- <td>${item["回数"]}</td>
- <td>${item["メダル"]}</td>
+ <td>${item.Title}</td>
+ <td>${item.Count}</td>
+ <td>${item.Medal}</td>
  </tr>`;
+}
 });
 
 html+="</table>";
@@ -142,12 +141,9 @@ html+="</table>";
 document.getElementById("result").innerHTML=html;
 
 }catch(error){
-
 alert("取得エラー");
 console.log(error);
-
 }
-
 }
 
 
@@ -156,10 +152,10 @@ console.log(error);
 // ==================
 async function deleteHistory(){
 
-const date =
+const selectedDate =
 document.getElementById("targetDate").value;
 
-if(!date){
+if(!selectedDate){
  alert("日付を選択してください");
  return;
 }
@@ -173,24 +169,18 @@ try{
 await fetch(DELETE_FLOW_URL,{
  method:"POST",
  headers:{ "Content-Type":"application/json" },
- body:JSON.stringify({date})
+ body:JSON.stringify({date:selectedDate})
 });
 
 alert("削除しました");
-
-// 再読込
 loadHistory();
 
 }catch(error){
-
 alert("削除エラー");
 console.log(error);
-
 }
-
 }
 
 </script>
-
 </body>
 </html>
