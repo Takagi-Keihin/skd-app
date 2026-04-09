@@ -116,7 +116,6 @@ const data = await response.json();
 
 console.log("フロー応答:",data);
 
-// ★ SharePoint版は配列直返し
 if(!data || data.length === 0){
  document.getElementById("result").innerHTML =
  "<p>該当データがありません</p>";
@@ -130,7 +129,13 @@ let hit=false;
 
 data.forEach(item=>{
 
-if(item.Date === selectedDate){
+// ★ SharePointはスペース対策必須
+const spDate = (item.Date ?? "").trim();
+const selDate = selectedDate.trim();
+
+if(spDate === selDate){
+
+hit=true;
 
  html+=`
  <tr>
