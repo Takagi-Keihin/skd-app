@@ -120,16 +120,14 @@ html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
 
 data.value.forEach(item=>{
 
-// SharePoint DateTime → yyyy-mm-ddへ変換
-const spDate = new Date(item.Date)
-                  .toISOString()
-                  .split('T')[0];
+// ★ SharePointは既に yyyy-mm-dd なので変換禁止
+const spDate = item.Date;
 
 if(spDate === selectedDate){
 
  html+=`
  <tr>
- <td>${item.Title}</td>
+ <td>${item.Name}</td>
  <td>${item.Count}</td>
  <td>${item.Medal}</td>
  </tr>`;
