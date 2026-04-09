@@ -130,17 +130,14 @@ let hit=false;
 
 data.forEach(item=>{
 
-// ★ Dateは文字列なので変換禁止
 if(item.Date === selectedDate){
 
-hit=true;
-
-html+=`
-<tr>
-<td>${item.Name}</td>
-<td>${item.Count}</td>
-<td>${item.Medal}</td>
-</tr>`;
+ html+=`
+ <tr>
+ <td>${item.Name ?? ""}</td>
+ <td>${item.Count ?? ""}</td>
+ <td>${item.Medal ?? ""}</td>
+ </tr>`;
 }
 });
 
