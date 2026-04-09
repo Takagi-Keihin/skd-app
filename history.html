@@ -54,6 +54,7 @@ th{
 </head>
 
 <body>
+
 <div class="container">
 
 <h2>履歴表示</h2>
@@ -76,17 +77,23 @@ th{
 
 <script>
 
-// SharePoint履歴取得フロー
-const HISTORY_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
+// =========================
+// ★ 履歴取得フローURL
+// =========================
+const HISTORY_FLOW_URL =
+"https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
 
-// SharePoint削除フロー
-const DELETE_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d82d670c9b54bd495d88d617274424e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nVTeoB1zSrFJvl5Wb8G4QmNwBLY1MqHVv9VFvYfizG0";
+
+// =========================
+// ★ 削除フローURL
+// =========================
+const DELETE_FLOW_URL =
+"https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d82d670c9b54bd495d88d617274424e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nVTeoB1zSrFJvl5Wb8G4QmNwBLY1MqHVv9VFvYfizG0";
 
 
-
-// ==================
-// 履歴表示（SharePoint対応）
-// ==================
+// =========================
+// 履歴表示（SharePoint版）
+// =========================
 async function loadHistory(){
 
 const selectedDate =
@@ -107,9 +114,10 @@ const response = await fetch(HISTORY_FLOW_URL,{
 
 const data = await response.json();
 
-console.log(data);
+console.log("フロー応答:",data);
 
-if(!data.value || data.value.length === 0){
+// ★ SharePoint版は配列直返し
+if(!data || data.length === 0){
  document.getElementById("result").innerHTML =
  "<p>該当データがありません</p>";
  return;
@@ -118,36 +126,44 @@ if(!data.value || data.value.length === 0){
 let html="<table>";
 html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
 
-data.value.forEach(item=>{
+let hit=false;
 
-// ★ SharePointは既に yyyy-mm-dd なので変換禁止
-const spDate = item.Date;
+data.forEach(item=>{
 
-if(spDate === selectedDate){
+// ★ Dateは文字列なので変換禁止
+if(item.Date === selectedDate){
 
- html+=`
- <tr>
- <td>${item.Name}</td>
- <td>${item.Count}</td>
- <td>${item.Medal}</td>
- </tr>`;
+hit=true;
+
+html+=`
+<tr>
+<td>${item.Name}</td>
+<td>${item.Count}</td>
+<td>${item.Medal}</td>
+</tr>`;
 }
 });
 
 html+="</table>";
 
-document.getElementById("result").innerHTML=html;
+if(!hit){
+ document.getElementById("result").innerHTML =
+ "<p>該当データがありません</p>";
+}else{
+ document.getElementById("result").innerHTML=html;
+}
 
 }catch(error){
 alert("取得エラー");
 console.log(error);
 }
+
 }
 
 
-// ==================
+// =========================
 // 日付全削除
-// ==================
+// =========================
 async function deleteHistory(){
 
 const selectedDate =
@@ -180,5 +196,6 @@ console.log(error);
 }
 
 </script>
+
 </body>
 </html>
