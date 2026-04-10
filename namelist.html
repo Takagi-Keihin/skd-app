@@ -89,7 +89,7 @@ throw new Error("HTTP "+res.status);
 
 const data = await res.json();
 
-render(data);
+render(data.value);
 
 status.innerText =
 "最終更新："+new Date().toLocaleString();
