@@ -33,8 +33,8 @@
   // ★ここに Power Automate の「HTTP URL」を貼り付け
   const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
 
-  // 自動更新間隔（ミリ秒）例：10秒
-  const REFRESH_MS = 10000;
+  // 自動更新間隔（ミリ秒）例：1時間
+  const REFRESH_MS = 3600000;
 
   const statusEl = document.getElementById("status");
   const errorEl  = document.getElementById("error");
