@@ -48,9 +48,9 @@
     gap: 8px;
   }
 
-  .inline{
-    display: grid;
-    grid-template-columns: 1fr 110px;
+.inline{
+  display: grid;
+  grid-template-columns: 0.5fr 110px 110px;
     gap: 10px;
     margin-top: 10px;
     align-items: center;
@@ -184,6 +184,30 @@
     color: var(--muted);
     text-align: center;
   }
+
+  /* ===== 入力完了：編集可能なままグレー表示 ===== *//* ===== 入力完了：編集可能6f8;
+}
+
+/* 入力欄は白のまま（＝編集できる見た目を維持） */
+.row.complete input,
+.row.complete select{
+  background:#ffffff;
+  opacity:1;
+}
+
+/* 行内追加ボタン */
+.rowAddBtn{
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #8fc8ff;
+  background: var(--blue-light);
+  cursor:pointer;
+  font-size:16px;
+}
+.rowAddBtn:hover{ filter: brightness(0.98); }
+.row.complete{
+
+  
 </style>
 </head>
 
@@ -383,6 +407,34 @@ function addRow(){
   inline.className = "inline";
 
   const count = document.createElement("input");
+  // ✅ 行内追加ボタン
+const addDone = document.createElement("button");
+addDone.type = "button";
+addDone.className = "rowAddBtn";
+addDone.textContent = "追加";
+addDone.onclick = () => {
+
+  const name = getChosenName(row);
+  const countVal = count.value;
+
+  if (!name || countVal === "") {
+    row.classList.add("error");
+    return;
+  }
+
+  // ✅ グレー化（編集は可能）
+  row.classList.add("complete");
+
+  // ✅ 次の行追加
+  addRow();
+
+  // ✅ 新規行へスクロール
+  setTimeout(() => {
+    const rows = document.querySelectorAll(".row");
+    const last = rows[rows.length - 1];
+    last.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 100);
+};
   count.type = "number";
   count.className = "countInput";
   count.placeholder = "回数";
@@ -419,8 +471,9 @@ function addRow(){
   nameArea.appendChild(custom);
   nameArea.appendChild(hint);
 
-  inline.appendChild(count);
-  inline.appendChild(del);
+inline.appendChild(count);
+inline.appendChild(addDone);
+inline.appendChild(del);
 
   row.appendChild(nameArea);
   row.appendChild(inline);
