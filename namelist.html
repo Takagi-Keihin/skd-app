@@ -10,12 +10,16 @@ body{font-family:system-ui;margin:16px}
 table{border-collapse:collapse;width:100%}
 th,td{border:1px solid #ccc;padding:8px}
 th{background:#eee}
+button{margin:10px 0;padding:8px 16px}
 </style>
 
 </head>
 <body>
 
 <h2>会員名簿</h2>
+
+<button id="refreshBtn">手動更新</button>
+
 <div id="status"></div>
 
 <table>
@@ -26,6 +30,7 @@ th{background:#eee}
 <th>稽古回数</th>
 <th>段位</th>
 <th>乱取りメダル</th>
+<th>成績</th>
 </tr>
 </thead>
 
@@ -34,7 +39,7 @@ th{background:#eee}
 
 <script>
 
-const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/8212d0d7e9af4be28be925ca027f8973/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2-rxZ54bDTKYVGrmvFnuWRg1l8zdh8Ov6cTi1P7gkGA";
+const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
 
 const tbody = document.getElementById("tbody");
 const status = document.getElementById("status");
@@ -60,6 +65,7 @@ const row = `
 <td>${esc(item.Count)}</td>
 <td>${esc(item.Dan)}</td>
 <td>${esc(item.Medal)}</td>
+<td>${esc(item.Achievements)}</td>
 </tr>
 `;
 
@@ -72,6 +78,8 @@ tbody.insertAdjacentHTML("beforeend",row);
 async function loadData(){
 
 try{
+
+status.innerText="更新中...";
 
 const res = await fetch(FLOW_URL);
 
@@ -93,12 +101,18 @@ console.error(e);
 
 }
 
+// 初回読み込み
 loadData();
 
-// 常時表示（10秒更新）
-setInterval(loadData,10000);
+// ✅ 自動更新（1時間 = 3600000ms）
+setInterval(loadData,3600000);
+
+// ✅ 手動更新ボタン
+document.getElementById("refreshBtn")
+.addEventListener("click",loadData);
 
 </script>
 
 </body>
 </html>
+``
