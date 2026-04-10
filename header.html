@@ -18,7 +18,7 @@ th{background:#f6f6f6;text-align:left}
 
 <body>
 
-<button id="refreshBtn">手動で更新</button>
+<button id="refreshBtn">更新</button>
 
 <div id="error" class="error" style="display:none"></div>
 <div id="status"></div>
@@ -93,8 +93,6 @@ data = JSON.parse(data);
 }
 
 render(data);
-
-statusEl.textContent="最終更新："+new Date().toLocaleString();
 
 }catch(e){
 errorEl.style.display="block";
