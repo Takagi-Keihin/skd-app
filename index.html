@@ -1,246 +1,610 @@
-<!DOCTYPE html>="UTF-8" />
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>乱取り回数入力</title>
 
 <style>
-body{
-  font-family: Arial;
-  max-width:560px;
-  margin:auto;
-  padding:16px;
-}
-h2{text-align:center;}
+  :root{
+    --blue-light:#bfe3ff;
+    --blue-dark:#1f6feb;
+    --blue-dark-hover:#1a5fd0;
 
-.row{
-  border:2px solid #ddd;
-  border-radius:12px;
-  padding:12px;
-  margin-bottom:12px;
-}
-.row.error{
-  border-color:#e5533d;
-  background:#fff5f4;
-}
+    --border:#d9d9d9;
+    --error:#e5533d;
+    --error-bg:#fff5f4;
 
-.inline{
-  display:grid;
-  grid-template-columns:1fr 110px;
-  gap:10px;
-  margin-top:10px;
-}
+    --text:#111;
+    --muted:#666;
+  }
 
-select,input{
-  padding:10px;
-  width:100%;
-  font-size:16px;
-}
+  body{
+    font-family: Arial, sans-serif;
+    max-width: 560px;
+    margin: auto;
+    padding: 16px;
+    color: var(--text);
+  }
 
-.customName{display:none;}
+  h2{ text-align:center; margin: 10px 0 18px; }
 
-.actionBtn{
-  padding:14px;
-  width:100%;
-  margin-top:10px;
-  border-radius:12px;
-  cursor:pointer;
-  font-size:16px;
-}
+  .row{
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #fff;
+    transition: border-color .15s, background-color .15s;
+  }
+  .row.error{
+    border-color: var(--error);
+    background: var(--error-bg);
+  }
+
+  .nameArea{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .inline{
+    display: grid;
+    grid-template-columns: 1fr 110px;
+    gap: 10px;
+    margin-top: 10px;
+    align-items: center;
+  }
+  @media (max-width: 480px){
+    .inline{ grid-template-columns: 1fr; }
+  }
+
+  select, input{
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 16px;
+  }
+
+  .customName{ display:none; }
+
+  .hint{
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: -2px;
+  }
+
+  .deleteBtn{
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #bbb;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .deleteBtn:hover{ background:#eee; }
+
+  .actionBtn{
+    padding: 14px;
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 12px;
+    border: 1px solid #bcd;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .addBtn{
+    background: var(--blue-light);
+    border-color: #8fc8ff;
+    color: #0b2a4a;
+  }
+  .addBtn:hover{ filter: brightness(0.98); }
+
+  .sendBtn{
+    background: var(--blue-dark);
+    border-color: var(--blue-dark);
+    color:#fff;
+  }
+  .sendBtn:hover{ background: var(--blue-dark-hover); }
+  .sendBtn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+  }
+
+  /* 履歴ボタン */
+  .historyBtn{
+    background:#0f766e;         /* teal */
+    border-color:#0f766e;
+    color:#fff;
+  }
+  .historyBtn:hover{ filter: brightness(0.95); }
+
+  /* ===== モーダル共通 ===== */
+  .overlay{
+    display:none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal{
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal h3{
+    margin: 0 0 10px;
+    font-size: 18px;
+  }
+  .modal .body{
+    white-space: pre-wrap;
+    background:#f7f7f7;
+    border:1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 12px;
+    max-height: 45vh;
+    overflow: auto;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .modal .actions{
+    display:flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .modal .actions button{
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #bbb;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .modal .actions .cancel{
+    background:#fafafa;
+  }
+  .modal .actions .ok{
+    background: var(--blue-dark);
+    border-color: var(--blue-dark);
+    color:#fff;
+  }
+
+  .modal.error h3{ color: var(--error); }
+  .modal.success h3{ color: #1a7f37; }
+
+  .small{
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
 </style>
 </head>
 
 <body>
-<h2>乱取り回数入力</h2>
+  <h2>乱取り回数入力</h2>
 
-<!-- ✅ 対象日 -->
-<div style="margin-bottom:16px;">
-<label>対象日</label>
-<input type="date" id="targetDate"/>
-<div style="font-size:12px;color:#666;">※未選択の場合は当日</div>
-</div>
+  <!-- ✅ Step1：対象日入力 -->
+  <div style="margin-bottom:16px;">
+    <label style="font-size:14px;color:#555;">対象日</label>
+    <input type="date" id="targetDate" style="margin-top:4px;" />
+    <div class="hint">※未選択の場合は当日が自動設定されます</div>
+  </div>
 
-<div id="formArea"></div>
+  <div id="formArea"></div>
 
-<button class="actionBtn" onclick="addRow()">＋追加</button>
-<button id="sendButton" class="actionBtn" onclick="submitAll()">まとめて送信</button>
+  <button class="actionBtn addBtn" onclick="addRow()">＋追加</button>
+  <button id="sendButton" class="actionBtn sendBtn" onclick="submitAll()">まとめて送信</button>
+
+  <!-- ✅ history.html へのリンクをボタンで追加 -->
+  <button class="actionBtn historyBtn" onclick="location.href='history.html'">履歴を見る</button>
+
+  <div class="small">※「その他（手入力）」を選ぶと一覧に無い名前も入力できます</div>
+
+  <!-- ✅ 確認モーダル -->
+  <div id="confirmOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal">
+      <h3 id="confirmTitle">乱取り回数入力の内容</h3>
+      <div id="confirmBody" class="body"></div>
+      <div class="actions">
+        <button class="cancel" type="button" onclick="closeConfirm()">キャンセル</button>
+        <button class="ok" type="button" onclick="confirmSend()">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ メッセージモーダル -->
+  <div id="messageOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="messageTitle">
+    <div id="messageModal" class="modal">
+      <h3 id="messageTitle">メッセージ</h3>
+      <div id="messageBody" class="body"></div>
+      <div class="actions">
+        <button class="ok" type="button" onclick="closeMessage()">OK</button>
+      </div>
+    </div>
+  </div>
 
 <script>
-const OTHER_VALUE="__OTHER__";
+/* =====================================================
+   固定URL
+===================================================== */
+const NAMES_FLOW_URL  =
+  "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
 
-const SUBMIT_FLOW_URL="https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
-const NAMES_FLOW_URL="https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8";
+/* ★重要：ここは「SharePointに書き込む」送信フローURLにしてください
+   - フロー自体をExcel→SharePointに置き換えて同じURLのまま運用しているなら変更不要
+   - 別フローを作ったならURL差し替えが必要
+*/
+const SUBMIT_FLOW_URL =
+  "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/064833865b844905a35b6c67a423567e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=J5glW6syJVDSL_9RZ4Mf4LXIoqYRP_GOsHCP6Gl1EUw";
 
-let names=[];
-let pendingPayload=[];
+/* =====================================================
+   変数
+===================================================== */
+let names = [];
+const OTHER_VALUE = "__OTHER__";
+let pendingPayload = [];
+let namesFetchController = null;
 
+/* =====================================================
+   初期化ガード（名前が2つ出る/行が2つできる問題を潰す）
+===================================================== */
 function resetFormArea(){
-document.getElementById("formArea").innerHTML="";
+  const area = document.getElementById("formArea");
+  area.innerHTML = ""; // 既存行を全消ししてから作り直す
 }
 
+/* =====================================================
+   モーダル（メッセージ）
+===================================================== */
+function showMessage(title, body, type){
+  const overlay = document.getElementById("messageOverlay");
+  const modal = document.getElementById("messageModal");
+  document.getElementById("messageTitle").textContent = title;
+  document.getElementById("messageBody").textContent = body;
+
+  modal.classList.remove("error","success");
+  if (type) modal.classList.add(type);
+
+  overlay.style.display = "flex";
+}
+
+function closeMessage(){
+  document.getElementById("messageOverlay").style.display = "none";
+}
+
+/* =====================================================
+   モーダル（確認）
+===================================================== */
+function openConfirm(text){
+  document.getElementById("confirmBody").textContent = text;
+  document.getElementById("confirmOverlay").style.display = "flex";
+}
+
+function closeConfirm(){
+  document.getElementById("confirmOverlay").style.display = "none";
+  pendingPayload = [];
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (document.getElementById("confirmOverlay").style.display === "flex") closeConfirm();
+  if (document.getElementById("messageOverlay").style.display === "flex") closeMessage();
+});
+
+/* =====================================================
+   選択されている名前を取得
+===================================================== */
 function getChosenName(row){
-const select=row.querySelector(".nameSelect");
-const custom=row.querySelector(".customName");
-if(select.value===OTHER_VALUE)return custom.value.trim();
-return select.value.trim();
+  const select = row.querySelector(".nameSelect");
+  const custom = row.querySelector(".customName");
+  if (!select) return "";
+  if (select.value === OTHER_VALUE) return (custom?.value || "").trim();
+  return (select.value || "").trim();
 }
 
+/* =====================================================
+   重複選択防止
+===================================================== */
 function refreshNameOptions(){
-const rows=[...document.querySelectorAll(".row")];
-const selected=new Set();
-rows.forEach(r=>{
-const s=r.querySelector(".nameSelect");
-if(s.value && s.value!==OTHER_VALUE)selected.add(s.value);
-});
-rows.forEach(r=>{
-const s=r.querySelector(".nameSelect");
-[...s.options].forEach(o=>{
-if(o.value===""||o.value===OTHER_VALUE){o.disabled=false;return;}
-o.disabled=selected.has(o.value)&&o.value!==s.value;
-});
-});
+  const rows = Array.from(document.querySelectorAll(".row"));
+  const selected = new Set();
+
+  rows.forEach(r => {
+    const s = r.querySelector(".nameSelect");
+    if (!s) return;
+    const v = (s.value || "").trim();
+    if (v && v !== OTHER_VALUE) selected.add(v);
+  });
+
+  rows.forEach(r => {
+    const s = r.querySelector(".nameSelect");
+    if (!s) return;
+    const current = (s.value || "").trim();
+
+    Array.from(s.options).forEach(opt => {
+      if (opt.value === "" || opt.value === OTHER_VALUE) {
+        opt.disabled = false;
+        return;
+      }
+      opt.disabled = selected.has(opt.value) && opt.value !== current;
+    });
+  });
 }
 
+/* =====================================================
+   行追加（プルダウンは常に1つ）
+===================================================== */
 function addRow(){
-const row=document.createElement("div");
-row.className="row";
+  const row = document.createElement("div");
+  row.className = "row";
 
-const select=document.createElement("select");
-select.className="nameSelect";
+  const nameArea = document.createElement("div");
+  nameArea.className = "nameArea";
 
-const ph=document.createElement("option");
-ph.value="";
-ph.text="名前を選択…";
-ph.disabled=true;
-ph.selected=true;
-select.appendChild(ph);
+  const select = document.createElement("select");
+  select.className = "nameSelect";
 
-names.forEach(n=>{
-const opt=document.createElement("option");
-opt.value=n;
-opt.text=n;
-select.appendChild(opt);
-});
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.text = "名前を選択…";
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  select.appendChild(placeholder);
 
-const other=document.createElement("option");
-other.value=OTHER_VALUE;
-other.text="その他（手入力）";
-select.appendChild(other);
+  names.forEach(n => {
+    const opt = document.createElement("option");
+    opt.value = n;
+    opt.text  = n;
+    select.appendChild(opt);
+  });
 
-const custom=document.createElement("input");
-custom.className="customName";
-custom.placeholder="手入力";
+  const otherOpt = document.createElement("option");
+  otherOpt.value = OTHER_VALUE;
+  otherOpt.text  = "その他（手入力）";
+  select.appendChild(otherOpt);
 
-select.onchange=()=>{
-custom.style.display=(select.value===OTHER_VALUE)?"block":"none";
-refreshNameOptions();
-};
+  const custom = document.createElement("input");
+  custom.type = "text";
+  custom.className = "customName";
+  custom.placeholder = "一覧に無い名前を入力";
 
-const count=document.createElement("input");
-count.type="number";
-count.className="countInput";
-count.placeholder="回数";
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = "※同じ名前は重複選択できません（手入力も送信時に重複チェックします）";
 
-const del=document.createElement("button");
-del.textContent="削除";
-del.onclick=()=>{
-row.remove();
-refreshNameOptions();
-};
+  const inline = document.createElement("div");
+  inline.className = "inline";
 
-const inline=document.createElement("div");
-inline.className="inline";
-inline.appendChild(count);
-inline.appendChild(del);
+  const count = document.createElement("input");
+  count.type = "number";
+  count.className = "countInput";
+  count.placeholder = "回数";
+  count.min = 0;
 
-row.appendChild(select);
-row.appendChild(custom);
-row.appendChild(inline);
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "deleteBtn";
+  del.textContent = "削除";
+  del.onclick = () => {
+    row.remove();
+    refreshNameOptions();
+  };
 
-document.getElementById("formArea").appendChild(row);
-refreshNameOptions();
+  function clearErrorOnEdit(){
+    if (row.classList.contains("error")) row.classList.remove("error");
+  }
+  select.addEventListener("change", clearErrorOnEdit);
+  custom.addEventListener("input", clearErrorOnEdit);
+  count.addEventListener("input", clearErrorOnEdit);
+
+  select.onchange = () => {
+    if (select.value === OTHER_VALUE) {
+      custom.style.display = "block";
+      custom.focus();
+    } else {
+      custom.style.display = "none";
+      custom.value = "";
+    }
+    refreshNameOptions();
+  };
+
+  nameArea.appendChild(select);
+  nameArea.appendChild(custom);
+  nameArea.appendChild(hint);
+
+  inline.appendChild(count);
+  inline.appendChild(del);
+
+  row.appendChild(nameArea);
+  row.appendChild(inline);
+
+  document.getElementById("formArea").appendChild(row);
+  refreshNameOptions();
 }
 
+/* =====================================================
+   名前取得
+===================================================== */
 async function loadNames(){
-const res=await fetch(NAMES_FLOW_URL,{method:"POST",body:"{}"});
-const data=await res.json();
-names=data.map(x=>x.Name||x.名前||x.Title);
-resetFormArea();
-addRow();
+  if (namesFetchController) namesFetchController.abort();
+  namesFetchController = new AbortController();
+
+  try{
+    const res = await fetch(NAMES_FLOW_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: "{}",
+      signal: namesFetchController.signal
+    });
+
+    if (!res.ok) {
+      const t = await res.text().catch(()=> "");
+      throw new Error(`HTTP ${res.status}\n${t}`);
+    }
+
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("名前リストが空です");
+    }
+
+    const extracted = data
+      .map(x => (x?.["名前"] ?? x?.["Name"] ?? x?.["Title"] ?? "").toString().trim())
+      .filter(Boolean);
+
+    names = Array.from(new Set(extracted));
+
+    if (names.length === 0) throw new Error("名前を抽出できません");
+
+    resetFormArea();
+    addRow();
+
+  }catch(e){
+    if (e.name === "AbortError") return;
+    console.error(e);
+    showMessage("名前取得エラー", String(e.message || e), "error");
+
+    names = ["山田","佐藤"];
+    resetFormArea();
+    addRow();
+  }finally{
+    namesFetchController = null;
+  }
 }
 
+/* =====================================================
+   送信前チェック → 確認モーダル表示
+===================================================== */
 function submitAll(){
+  const rows = Array.from(document.querySelectorAll(".row"));
+  let valid = true;
+  const payload = [];
 
-const date=document.getElementById("targetDate").value
-||new Date().toISOString().slice(0,10);
+  rows.forEach(r => {
+    r.classList.remove("error");
 
-const rows=[...document.querySelectorAll(".row")];
-let valid=true;
-const payload=[];
+    const name = getChosenName(r);
+    const count = r.querySelector(".countInput")?.value ?? "";
 
-rows.forEach(r=>{
-const name=getChosenName(r);
-const count=r.querySelector(".countInput").value;
-if(!name||count===""){
-r.classList.add("error");
-valid=false;
-return;
-}
+    if (!name || count === "") {
+      r.classList.add("error");
+      valid = false;
+      return;
+    }
+
+    
+const date = document.getElementById("targetDate").value;
+
 payload.push({
-name:name,
-count:Number(count),
-date:date
+  name: name,
+  count: Number(count),
+  date: date
 });
-});
 
-if(!valid)return;
+  });
 
-const seen=new Set();
-for(const p of payload){
-if(seen.has(p.name)){
-alert("同じ名前が重複しています");
-return;
+  if (!valid) {
+    showMessage("未入力があります", "赤枠の行（名前/回数）を入力してください。", "error");
+    return;
+  }
+
+  /* ===============================
+     ★修正点(1)(2)：重複チェックを正しく
+     - p.Name → p.name（バグ修正）
+     - 手入力/全角空白など揺れを最小限に正規化
+  =============================== */
+  const normalizeName = (s) => (s ?? "")
+    .toString()
+    .replace(/\u3000/g, " ")  // 全角スペース→半角
+    .replace(/\s+/g, " ")     // 連続空白を1つへ
+    .trim();
+
+  const seen = new Set();
+  const dups = new Set();
+
+  payload.forEach(p => {
+    const key = normalizeName(p.name);   // ★ここが本来の正しいキー
+    if (seen.has(key)) dups.add(key);
+    else seen.add(key);
+  });
+
+  if (dups.size > 0) {
+    showMessage(
+      "重複があります",
+      "同じ名前が重複しています。修正してください:\n\n" + Array.from(dups).join("\n"),
+      "error"
+    );
+    return;
+  }
+
+  pendingPayload = payload;
+
+  
+const confirmText =
+`対象日: ${payload[0].date}
+
+` + payload.map(p => `${p.name}: ${p.count}`).join("\n");
+
+  openConfirm(confirmText);
 }
-seen.add(p.name);
-}
 
-pendingPayload=payload;
-
-const confirmText=
-`対象日: ${date}
-
-`+payload.map(p=>`${p.name}:${p.count}`).join("\n");
-
-if(confirm(confirmText))confirmSend();
-}
-
+/* =====================================================
+   確認モーダルで「送信」→ 実送信
+===================================================== */
 async function confirmSend(){
+  if (!pendingPayload || pendingPayload.length === 0) {
+    closeConfirm();
+    return;
+  }
 
-const btn=document.getElementById("sendButton");
-btn.disabled=true;
+  const btn = document.getElementById("sendButton");
+  btn.disabled = true;
 
-try{
-const res=await fetch(SUBMIT_FLOW_URL,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(pendingPayload)
-});
-if(!res.ok)throw new Error(await res.text());
-alert("送信完了");
-location.reload();
-}catch(e){
-alert(e);
-btn.disabled=false;
+  try{
+    const res = await fetch(SUBMIT_FLOW_URL, {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify(pendingPayload)
+    });
+
+    const text = await res.text().catch(()=> "");
+    if (!res.ok) throw new Error(`HTTP ${res.status}\n${text}`);
+
+    closeConfirm();
+    showMessage("送信完了", "送信しました。", "success");
+    setTimeout(() => location.reload(), 700);
+
+  }catch(e){
+    console.error(e);
+    closeConfirm();
+    showMessage("送信エラー", String(e.message || e), "error");
+    btn.disabled = false;
+  }
 }
-}
+
+/* =====================================================
+   初期化：二重初期化を防止
+===================================================== */
 
 function init(){
-const today=new Date().toISOString().slice(0,10);
-document.getElementById("targetDate").value=today;
-loadNames();
+  if (window.__appInitialized) return;
+  window.__appInitialized = true;
+
+  // ✅ Step2：当日をデフォルトセット
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById("targetDate").value = today;
+
+  loadNames();
 }
 
-document.addEventListener("DOMContentLoaded",init);
+document.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
 </html>
-<html lang="ja">
-<head>
