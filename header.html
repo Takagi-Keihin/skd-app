@@ -120,7 +120,7 @@ renderSummary(summary.body ?? summary);
 const res2 = await fetch(NAMELIST_FLOW_URL);
 let namelist = await res2.json();
 if(typeof namelist==="string") namelist=JSON.parse(namelist);
-renderNameList(namelist);
+renderNameList(namelist.body ?? namelist);
 
 }catch(e){
 errorEl.style.display="block";
