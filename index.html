@@ -501,7 +501,7 @@ function submitAll(){
     }
 
     // SharePoint寄せ：Name / Count
-    payload.push({ Name: name, Count: Number(count) });
+    payload.push({ name: name, count: Number(count) });
   });
 
   if (!valid) {
@@ -525,7 +525,8 @@ function submitAll(){
 
   pendingPayload = payload;
 
-  const confirmText = payload.map(p => `${p.Name}: ${p.Count}`).join("\n");
+  const confirmText = payload.map(p => `${p.name}: ${p.count}`).join("\n");
+
   openConfirm(confirmText);
 }
 
