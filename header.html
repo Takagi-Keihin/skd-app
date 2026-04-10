@@ -115,12 +115,12 @@ try{
 const res1 = await fetch(SUMMARY_FLOW_URL);
 let summary = await res1.json();
 if(typeof summary==="string") summary=JSON.parse(summary);
-renderSummary(summary.body ?? summary);
+renderSummary(summary.body ?? summary.value ?? summary);
 // 下段Flow
 const res2 = await fetch(NAMELIST_FLOW_URL);
 let namelist = await res2.json();
 if(typeof namelist==="string") namelist=JSON.parse(namelist);
-renderNameList(namelist.body ?? namelist);
+renderNameList(namelist.body ?? namelist.value ?? namelist);
 
 }catch(e){
 errorEl.style.display="block";
