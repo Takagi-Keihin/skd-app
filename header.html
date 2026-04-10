@@ -8,7 +8,6 @@
 <style>
 body{font-family:system-ui;margin:16px}
 button{margin:10px 0;padding:8px 16px}
-#status{color:#666;font-size:12px}
 table{border-collapse:collapse;width:100%;margin-top:12px}
 th,td{border:1px solid #ddd;padding:8px}
 th{background:#f6f6f6;text-align:left}
@@ -21,7 +20,6 @@ th{background:#f6f6f6;text-align:left}
 <button id="refreshBtn">更新</button>
 
 <div id="error" class="error" style="display:none"></div>
-<div id="status"></div>
 
 <table>
 <thead>
@@ -35,10 +33,8 @@ th{background:#f6f6f6;text-align:left}
 
 <script>
 
-// 必ず logic.azure.com URL
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
 
-const statusEl = document.getElementById("status");
 const errorEl  = document.getElementById("error");
 const tbodyEl  = document.getElementById("tbody");
 
@@ -72,12 +68,10 @@ tbodyEl.appendChild(tr);
 }
 }
 
-// ✅ Flow呼び出しはボタンのみ
+// ✅ Flow呼び出し（静音）
 async function fetchFlow(){
 
 try{
-
-statusEl.textContent="更新中...";
 
 const res = await fetch(FLOW_URL);
 
@@ -87,7 +81,6 @@ throw new Error("HTTP "+res.status);
 
 let data = await res.json();
 
-// Jimdo iframe対策
 if(typeof data === "string"){
 data = JSON.parse(data);
 }
@@ -97,11 +90,25 @@ render(data);
 }catch(e){
 errorEl.style.display="block";
 errorEl.textContent=e;
-statusEl.textContent="更新失敗";
 }
 }
 
-// ✅ ボタン押下のみでFlow実行
+// ✅ 初回表示のみ自動取得
+(function(){
+
+const first = localStorage.getItem("firstLoadDone");
+
+if(!first){
+
+fetchFlow();
+
+localStorage.setItem("firstLoadDone","true");
+
+}
+
+})();
+
+// ✅ 手動更新ボタンのみでFlow実行
 document
 .getElementById("refreshBtn")
 .addEventListener("click",fetchFlow);
