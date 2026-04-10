@@ -17,6 +17,7 @@
 <body>
 
   <div id="error" class="error" style="display:none"></div>
+  <div id="status"></div>
 
   <table>
     <thead>
@@ -71,25 +72,35 @@
     }
   }
 
-  async function refresh(){
-    statusEl.textContent = "更新中...";
-    try{
-      clearError();
-      const res = await fetch(FLOW_URL, { method:"GET" });
-      if(!res.ok){
-        const t = await res.text().catch(()=> "");
-        throw new Error(`HTTP ${res.status}\n${t}`);
-      }
-      const data = await res.json(); // 期待：配列
-      if(!Array.isArray(data)){
-        throw new Error("Flowの応答が配列ではありません。Selectの出力を返しているか確認してください。\n" + JSON.stringify(data, null, 2));
-      }
+async function refresh(){
 
-    }catch(e){
-      showError(String(e.stack || e.message || e));
-      statusEl.textContent = `更新失敗: ${new Date().toLocaleString("ja-JP")}`;
+  try{
+
+    clearError();
+
+    const res = await fetch(FLOW_URL, { method:"GET" });
+
+    if(!res.ok){
+      const t = await res.text().catch(()=> "");
+      throw new Error(`HTTP ${res.status}\n${t}`);
     }
+
+    const data = await res.json();
+
+    if(!Array.isArray(data)){
+      throw new Error("Flowの応答が配列ではありません\n" + JSON.stringify(data,null,2));
+    }
+
+    ✅ render(data);   // ←★これが無かった！！
+
+    statusEl.textContent =
+    "最終更新：" + new Date().toLocaleString();
+
   }
+  catch(e){
+    showError(String(e.stack || e.message || e));
+  }
+}
 
   refresh();
   setInterval(refresh, REFRESH_MS);
