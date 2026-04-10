@@ -7,6 +7,7 @@
 
 <style>
 body{font-family:system-ui;margin:16px}
+button{margin:10px 0;padding:8px 16px}
 #status{color:#666;font-size:12px}
 table{border-collapse:collapse;width:100%;margin-top:12px}
 th,td{border:1px solid #ddd;padding:8px}
@@ -16,6 +17,8 @@ th{background:#f6f6f6;text-align:left}
 </head>
 
 <body>
+
+<button id="refreshBtn">手動で更新</button>
 
 <div id="error" class="error" style="display:none"></div>
 <div id="status"></div>
@@ -34,13 +37,6 @@ th{background:#f6f6f6;text-align:left}
 
 // 必ず logic.azure.com URL
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
-
-// Jimdo iframe対策用キャッシュキー
-const CACHE_KEY = "flowDataCache";
-const TIME_KEY  = "lastFetch";
-
-// 1時間
-const REFRESH_LIMIT = 3600000;
 
 const statusEl = document.getElementById("status");
 const errorEl  = document.getElementById("error");
@@ -76,7 +72,7 @@ tbodyEl.appendChild(tr);
 }
 }
 
-// ✅ Flow呼び出し（Jimdo対策）
+// ✅ Flow呼び出しはボタンのみ
 async function fetchFlow(){
 
 try{
@@ -91,14 +87,10 @@ throw new Error("HTTP "+res.status);
 
 let data = await res.json();
 
-// Jimdo iframe対策：文字列返却対応
+// Jimdo iframe対策
 if(typeof data === "string"){
 data = JSON.parse(data);
 }
-
-// キャッシュ保存
-localStorage.setItem(CACHE_KEY,JSON.stringify(data));
-localStorage.setItem(TIME_KEY,Date.now());
 
 render(data);
 
@@ -111,33 +103,13 @@ statusEl.textContent="更新失敗";
 }
 }
 
-// ✅ 初回ロード制御（Jimdo再描画防止）
-(function(){
+// ✅ ボタン押下のみでFlow実行
+document
+.getElementById("refreshBtn")
+.addEventListener("click",fetchFlow);
 
-const last = localStorage.getItem(TIME_KEY);
-const cache = localStorage.getItem(CACHE_KEY);
-
-if(last && cache){
-
-const diff = Date.now()-Number(last);
-
-// 1時間以内ならFlow呼ばない
-if(diff < REFRESH_LIMIT){
-
-render(JSON.parse(cache));
-
-statusEl.textContent=
-"キャッシュ表示："+new Date(Number(last)).toLocaleString();
-
-return;
-}
-}
-
-// 1時間経過時のみFlow呼ぶ
-fetchFlow();
-
-})();
 </script>
 
 </body>
 </html>
+``
