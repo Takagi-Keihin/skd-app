@@ -15,18 +15,14 @@
   </style>
 </head>
 <body>
-  <header>
-    <h2>SharePoint リスト（公開表示）</h2>
-    <div id="status">準備中...</div>
-  </header>
 
   <div id="error" class="error" style="display:none"></div>
 
   <table>
     <thead>
       <tr>
-        <th>Date</th>
-        <th>Title</th>
+        <th>最終更新日</th>
+        <th>累積稽古回数</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -88,8 +84,7 @@
       if(!Array.isArray(data)){
         throw new Error("Flowの応答が配列ではありません。Selectの出力を返しているか確認してください。\n" + JSON.stringify(data, null, 2));
       }
-      render(data);
-      statusEl.textContent = `最終更新: ${new Date().toLocaleString("ja-JP")}（${data.length}件）`;
+
     }catch(e){
       showError(String(e.stack || e.message || e));
       statusEl.textContent = `更新失敗: ${new Date().toLocaleString("ja-JP")}`;
