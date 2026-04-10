@@ -427,16 +427,23 @@ function addRow(){
   row.appendChild(nameArea);
   row.appendChild(inline);
 
-  document.getElementById("formArea").appendChild(row);
-  refreshNameOptions();
-  // ✅ 新規追加行へスクロール
+document.getElementById("formArea").appendChild(row);
+refreshNameOptions();
+
+// ✅ 新規追加行へスクロール
 setTimeout(() => {
   row.scrollIntoView({
     behavior: "smooth",
     block: "start"
   });
+
+  // ✅ 名前selectへ自動フォーカス（←追加）
+  const newSelect = row.querySelector(".nameSelect");
+  if(newSelect){
+    newSelect.focus();
+  }
+
 }, 50);
-}
 
 /* =====================================================
    名前取得
