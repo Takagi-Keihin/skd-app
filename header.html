@@ -99,7 +99,11 @@ nameBody.insertAdjacentHTML("beforeend",`
 <td>${esc(r.Title)}</td>
 <td>${esc(r.Grade)}</td>
 <td>${esc(r.Count)}</td>
-<td>${esc(r.Dan)}</td>
+
+<td style="${(r.Dan ?? '').trim()==='9級' ? 'background:#ffa500;color:white;font-weight:bold;' : ''}">
+  ${esc(r.Dan ?? "")}
+</td>
+
 <td>${esc(r.Medal)}</td>
 </tr>
 `);
