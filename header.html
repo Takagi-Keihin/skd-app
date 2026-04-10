@@ -21,6 +21,8 @@ th{background:#f6f6f6;text-align:left}
 
 <div id="error" class="error" style="display:none"></div>
 
+<!-- ✅ 上段 -->
+<h3>稽古状況</h3>
 <table>
 <thead>
 <tr>
@@ -28,15 +30,35 @@ th{background:#f6f6f6;text-align:left}
 <th>累積稽古回数</th>
 </tr>
 </thead>
-<tbody id="tbody"></tbody>
+<tbody id="summaryBody"></tbody>
+</table>
+
+<!-- ✅ 下段 -->
+<h3>会員一覧</h3>
+<table>
+<thead>
+<tr>
+<th>名前</th>
+<th>学年</th>
+<th>稽古回数</th>
+<th>段位</th>
+<th>乱取りメダル</th>
+</tr>
+</thead>
+<tbody id="nameBody"></tbody>
 </table>
 
 <script>
 
-const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
+// ✅ Flow① 上段（Summary）
+const SUMMARY_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
 
-const errorEl  = document.getElementById("error");
-const tbodyEl  = document.getElementById("tbody");
+// ✅ Flow② 下段（namelist）
+const NAMELIST_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/8212d0d7e9af4be28be925ca027f8973/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2-rxZ54bDTKYVGrmvFnuWRg1l8zdh8Ov6cTi1P7gkGA";
+
+const errorEl     = document.getElementById("error");
+const summaryBody = document.getElementById("summaryBody");
+const nameBody    = document.getElementById("nameBody");
 
 const esc = s =>
 String(s ?? "").replace(/[&<>"']/g,c=>({
@@ -45,47 +67,61 @@ String(s ?? "").replace(/[&<>"']/g,c=>({
 }[c]));
 
 function formatDate(value){
-if(!value) return "";
-const d = new Date(value);
-if(Number.isNaN(d.getTime())) return String(value);
-return d.toLocaleDateString("ja-JP");
+const d=new Date(value);
+return Number.isNaN(d)?value:d.toLocaleDateString("ja-JP");
 }
 
-function render(rows){
+// ✅ 上段描画
+function renderSummary(rows){
 
-tbodyEl.innerHTML="";
+summaryBody.innerHTML="";
 
 for(const r of rows){
 
-const tr=document.createElement("tr");
-
-tr.innerHTML=`
+summaryBody.insertAdjacentHTML("beforeend",`
+<tr>
 <td>${esc(formatDate(r.Date))}</td>
+<td>${esc(r.Count)}</td>
+</tr>
+`);
+}
+}
+
+// ✅ 下段描画
+function renderNameList(rows){
+
+nameBody.innerHTML="";
+
+for(const r of rows){
+
+nameBody.insertAdjacentHTML("beforeend",`
+<tr>
 <td>${esc(r.Title)}</td>
-`;
-
-tbodyEl.appendChild(tr);
+<td>${esc(r.Grade)}</td>
+<td>${esc(r.Count)}</td>
+<td>${esc(r.Dan)}</td>
+<td>${esc(r.Medal)}</td>
+</tr>
+`);
 }
 }
 
-// ✅ Flow呼び出し（静音）
-async function fetchFlow(){
+// ✅ 更新ボタン押下時のみ
+async function fetchAll(){
 
 try{
 
-const res = await fetch(FLOW_URL);
+// 上段Flow
+const res1 = await fetch(SUMMARY_FLOW_URL);
+let summary = await res1.json();
+if(typeof summary==="string") summary=JSON.parse(summary);
+renderSummary(summary);
 
-if(!res.ok){
-throw new Error("HTTP "+res.status);
-}
-
-let data = await res.json();
-
-if(typeof data === "string"){
-data = JSON.parse(data);
-}
-
-render(data);
+// 下段Flow
+const res2 = await fetch(NAMELIST_FLOW_URL);
+let namelist = await res2.json();
+if(typeof namelist==="string") namelist=JSON.parse(namelist);
+renderNameList(namelist);
 
 }catch(e){
 errorEl.style.display="block";
@@ -93,25 +129,10 @@ errorEl.textContent=e;
 }
 }
 
-// ✅ 初回表示のみ自動取得
-(function(){
-
-const first = localStorage.getItem("firstLoadDone");
-
-if(!first){
-
-fetchFlow();
-
-localStorage.setItem("firstLoadDone","true");
-
-}
-
-})();
-
-// ✅ 手動更新ボタンのみでFlow実行
+// ✅ 手動更新のみ
 document
 .getElementById("refreshBtn")
-.addEventListener("click",fetchFlow);
+.addEventListener("click",fetchAll);
 
 </script>
 
