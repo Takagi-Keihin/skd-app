@@ -35,6 +35,7 @@ th{background:#f6f6f6;text-align:left}
 
 <script>
 
+// 必ず logic.azure.com URL
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
 
 const statusEl = document.getElementById("status");
@@ -71,7 +72,7 @@ tbodyEl.appendChild(tr);
 }
 }
 
-// ✅ Flow呼び出し
+// ✅ Flow呼び出しはボタンのみ
 async function fetchFlow(){
 
 try{
@@ -86,6 +87,7 @@ throw new Error("HTTP "+res.status);
 
 let data = await res.json();
 
+// Jimdo iframe対策
 if(typeof data === "string"){
 data = JSON.parse(data);
 }
@@ -101,22 +103,7 @@ statusEl.textContent="更新失敗";
 }
 }
 
-// ✅ 初回表示のみ自動取得
-(function(){
-
-const first = localStorage.getItem("firstLoadDone");
-
-if(!first){
-
-fetchFlow(); // 初回のみ実行
-
-localStorage.setItem("firstLoadDone","true");
-
-}
-
-})();
-
-// ✅ 手動更新ボタンのみでFlow実行
+// ✅ ボタン押下のみでFlow実行
 document
 .getElementById("refreshBtn")
 .addEventListener("click",fetchFlow);
