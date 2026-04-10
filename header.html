@@ -100,7 +100,7 @@ async function refresh(){
 
     const data = await res.json();
 
-    render(data.value);
+    render(data);
 
     localStorage.setItem("lastFetch",Date.now());
 
