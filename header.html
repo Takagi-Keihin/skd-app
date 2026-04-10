@@ -1,120 +1,143 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>公開：SharePointリスト表示</title>
-  <style>
-    body{font-family:system-ui,"Segoe UI",sans-serif;margin:16px}
-    header{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
-    #status{color:#666;font-size:12px}
-    table{border-collapse:collapse;width:100%;margin-top:12px}
-    th,td{border:1px solid #ddd;padding:8px}
-    th{background:#f6f6f6;text-align:left}
-    .error{color:#b00020;white-space:pre-wrap;margin-top:12px}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>公開：SharePointリスト表示</title>
+
+<style>
+body{font-family:system-ui;margin:16px}
+#status{color:#666;font-size:12px}
+table{border-collapse:collapse;width:100%;margin-top:12px}
+th,td{border:1px solid #ddd;padding:8px}
+th{background:#f6f6f6;text-align:left}
+.error{color:#b00020;white-space:pre-wrap;margin-top:12px}
+</style>
 </head>
+
 <body>
 
-  <div id="error" class="error" style="display:none"></div>
-  <div id="status"></div>
+<div id="error" class="error" style="display:none"></div>
+<div id="status"></div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>最終稽古日</th>
-        <th>累積稽古回数</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
+<table>
+<thead>
+<tr>
+<th>最終稽古日</th>
+<th>累積稽古回数</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
 
 <script>
-  // ★ここに Power Automate の「HTTP URL」を貼り付け
-  const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
 
-  // 自動更新間隔（ミリ秒）例：1時間
-  const REFRESH_MS = 3600000;
+// 必ず logic.azure.com URL
+const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/2d5e8b33f7b24ef0ada202adfcf001fb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OSi9LYJvPPq8yTqoiHcz4MeT72sPuxui0VM_wkbJb5Q";
 
-  const statusEl = document.getElementById("status");
-  const errorEl  = document.getElementById("error");
-  const tbodyEl  = document.getElementById("tbody");
+// Jimdo iframe対策用キャッシュキー
+const CACHE_KEY = "flowDataCache";
+const TIME_KEY  = "lastFetch";
 
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
-    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])
-  );
+// 1時間
+const REFRESH_LIMIT = 3600000;
 
-  function showError(msg){
-    errorEl.style.display = "block";
-    errorEl.textContent = msg;
-  }
-  function clearError(){
-    errorEl.style.display = "none";
-    errorEl.textContent = "";
-  }
+const statusEl = document.getElementById("status");
+const errorEl  = document.getElementById("error");
+const tbodyEl  = document.getElementById("tbody");
 
-  function formatDate(value){
-    if(!value) return "";
-    // Flow/SharePointは ISO文字列になることが多い: "2026-04-09" や "2026-04-09T00:00:00Z"
-    const d = new Date(value);
-    if(Number.isNaN(d.getTime())) return String(value);
-    return d.toLocaleDateString("ja-JP");
-  }
+const esc = s =>
+String(s ?? "").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",
+'"':"&quot;","'":"&#39;"
+}[c]));
 
-  function render(rows){
-    tbodyEl.innerHTML = "";
-    for(const r of rows){
-      const date = formatDate(r.Date);
-      const title = r.Title ?? "";
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${esc(date)}</td><td>${esc(title)}</td>`;
-      tbodyEl.appendChild(tr);
-    }
-  }
-
-async function refresh(){
-
-  const last = localStorage.getItem("lastFetch");
-
-  if(last){
-    const diff = Date.now() - Number(last);
-
-    // 1時間未満ならスキップ
-    if(diff < 3600000){
-      statusEl.textContent = 
-      "キャッシュ表示："+new Date(Number(last)).toLocaleString();
-      return;
-    }
-  }
-
-  try{
-
-    clearError();
-
-    const res = await fetch(FLOW_URL);
-
-    if(!res.ok){
-      const t = await res.text().catch(()=> "");
-      throw new Error(`HTTP ${res.status}\n${t}`);
-    }
-
-    const data = await res.json();
-
-    render(data);
-
-    localStorage.setItem("lastFetch",Date.now());
-
-    statusEl.textContent =
-    "最終更新："+new Date().toLocaleString();
-
-  }
-  catch(e){
-    showError(String(e.stack || e.message || e));
-  }
+function formatDate(value){
+if(!value) return "";
+const d = new Date(value);
+if(Number.isNaN(d.getTime())) return String(value);
+return d.toLocaleDateString("ja-JP");
 }
 
-  refresh();
-  setInterval(refresh, REFRESH_MS);
+function render(rows){
+
+tbodyEl.innerHTML="";
+
+for(const r of rows){
+
+const tr=document.createElement("tr");
+
+tr.innerHTML=`
+<td>${esc(formatDate(r.Date))}</td>
+<td>${esc(r.Title)}</td>
+`;
+
+tbodyEl.appendChild(tr);
+}
+}
+
+// ✅ Flow呼び出し（Jimdo対策）
+async function fetchFlow(){
+
+try{
+
+statusEl.textContent="更新中...";
+
+const res = await fetch(FLOW_URL);
+
+if(!res.ok){
+throw new Error("HTTP "+res.status);
+}
+
+let data = await res.json();
+
+// Jimdo iframe対策：文字列返却対応
+if(typeof data === "string"){
+data = JSON.parse(data);
+}
+
+// キャッシュ保存
+localStorage.setItem(CACHE_KEY,JSON.stringify(data));
+localStorage.setItem(TIME_KEY,Date.now());
+
+render(data);
+
+statusEl.textContent="最終更新："+new Date().toLocaleString();
+
+}catch(e){
+errorEl.style.display="block";
+errorEl.textContent=e;
+statusEl.textContent="更新失敗";
+}
+}
+
+// ✅ 初回ロード制御（Jimdo再描画防止）
+(function(){
+
+const last = localStorage.getItem(TIME_KEY);
+const cache = localStorage.getItem(CACHE_KEY);
+
+if(last && cache){
+
+const diff = Date.now()-Number(last);
+
+// 1時間以内ならFlow呼ばない
+if(diff < REFRESH_LIMIT){
+
+render(JSON.parse(cache));
+
+statusEl.textContent=
+"キャッシュ表示："+new Date(Number(last)).toLocaleString();
+
+return;
+}
+}
+
+// 1時間経過時のみFlow呼ぶ
+fetchFlow();
+
+})();
 </script>
+
 </body>
 </html>
