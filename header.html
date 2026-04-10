@@ -91,7 +91,7 @@ async function refresh(){
       throw new Error("Flowの応答が配列ではありません\n" + JSON.stringify(data,null,2));
     }
 
-    ✅ render(data);   // ←★これが無かった！！
+    render(data);   // ←★これが無かった！！
 
     statusEl.textContent =
     "最終更新：" + new Date().toLocaleString();
