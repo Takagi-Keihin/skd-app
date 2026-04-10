@@ -115,8 +115,7 @@ try{
 const res1 = await fetch(SUMMARY_FLOW_URL);
 let summary = await res1.json();
 if(typeof summary==="string") summary=JSON.parse(summary);
-renderSummary(summary);
-
+renderSummary(summary.body ?? summary);
 // 下段Flow
 const res2 = await fetch(NAMELIST_FLOW_URL);
 let namelist = await res2.json();
