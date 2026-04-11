@@ -78,10 +78,10 @@ summaryBody.innerHTML="";
 for(const r of rows){
 
 summaryBody.insertAdjacentHTML("beforeend",`
-<tr>
-<td>${esc(formatDate(r.Date))}</td>
-<td>${esc(r.Title)}</td>
-</tr>
+      <tr>
+        <td>${esc(formatDate(r.Date))}</td>
+        <td>${esc((r.Count ?? "").toString().trim())}</td>
+      </tr>
 `);
 }
 }
