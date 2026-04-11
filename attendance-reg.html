@@ -8,7 +8,6 @@
 
 <h2>出欠チェック</h2>
 
-<!-- 日付入力 -->
 <label>日付：</label>
 <input type="date" id="targetDate">
 
@@ -18,7 +17,6 @@
 </form>
 
 <script>
-// 今日の日付をデフォルトセット
 function setToday() {
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -27,7 +25,6 @@ function setToday() {
   document.getElementById("targetDate").value = `${yyyy}-${mm}-${dd}`;
 }
 
-// 名前一覧取得
 async function loadNames() {
   try {
     const res = await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8", {
@@ -39,8 +36,6 @@ async function loadNames() {
     });
 
     const result = await res.json();
-
-    // value / body 対応
     const data = result.value || result.body || result;
 
     const container = document.getElementById("nameList");
@@ -48,8 +43,6 @@ async function loadNames() {
 
     data.forEach((item, index) => {
       const name = item["名前"] || item.Name || item.Title;
-
-      // 名前が無い行はスキップ
       if (!name) return;
 
       const isTeacher = item["指導者"] == 1 || item["指導者"] == "1";
@@ -74,7 +67,6 @@ async function loadNames() {
   }
 }
 
-// 送信処理
 async function submitData() {
   try {
     if (!window.nameData) {
@@ -83,13 +75,13 @@ async function submitData() {
     }
 
     const date = document.getElementById("targetDate").value;
-
     if (!date) {
       alert("日付を選択してください");
       return;
     }
 
     const results = [];
+    const selectedNames = [];
 
     window.nameData.forEach((item, index) => {
       const checkbox = document.querySelector(`input[name="att_${index}"]`);
@@ -105,10 +97,18 @@ async function submitData() {
         Date: date,
         Teacher: isTeacher ? "Yes" : ""
       });
+
+      selectedNames.push(name);
     });
 
     if (results.length === 0) {
       alert("出席者を選択してください");
+      return;
+    }
+
+    // ★ 最終確認
+    const confirmMessage = `以下のメンバーを送信します。\n\n${selectedNames.join("\n")}\n\nよろしいですか？`;
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -122,13 +122,15 @@ async function submitData() {
 
     alert("送信完了");
 
+    // ★ チェックボックス全OFF
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+
   } catch (e) {
     console.error("送信エラー:", e);
     alert("送信に失敗しました");
   }
 }
 
-// 初期化
 setToday();
 loadNames();
 </script>
