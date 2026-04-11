@@ -38,25 +38,28 @@ async function loadNames() {
       body: JSON.stringify({})
     });
 
-    console.log("名前取得レスポンス:", res);
-
     const result = await res.json();
-    console.log("取得データ:", result);
 
     // value / body 対応
     const data = result.value || result.body || result;
 
     const container = document.getElementById("nameList");
-    container.innerHTML = ""; // 初期化
+    container.innerHTML = "";
 
     data.forEach((item, index) => {
-      const name = item["名前"] || item.Name || item.Title || "不明";
+      const name = item["名前"] || item.Name || item.Title;
+
+      // 名前が無い行はスキップ
+      if (!name) return;
+
+      const isTeacher = item["指導者"] == 1 || item["指導者"] == "1";
+      const teacherLabel = isTeacher ? "<span style='color:red;'>（指導者）</span>" : "";
 
       const row = `
         <div>
           <label>
-            <input type="checkbox" name="att_${index}">
-            ${name}
+            <input type="checkbox" name="att_${index}" data-teacher="${isTeacher}">
+            ${name} ${teacherLabel}
           </label>
         </div>
       `;
@@ -74,8 +77,6 @@ async function loadNames() {
 // 送信処理
 async function submitData() {
   try {
-    console.log("送信開始");
-
     if (!window.nameData) {
       alert("名前データが読み込まれていません");
       return;
@@ -91,31 +92,33 @@ async function submitData() {
     const results = [];
 
     window.nameData.forEach((item, index) => {
-      const checked = document.querySelector(`input[name="att_${index}"]:checked`);
-      if (checked) {
-        results.push({
-          Name: item["名前"] || item.Name || item.Title,
-          Date: date
-        });
-      }
-    });
+      const checkbox = document.querySelector(`input[name="att_${index}"]`);
+      if (!checkbox || !checkbox.checked) return;
 
-    console.log("送信データ:", results);
+      const name = item["名前"] || item.Name || item.Title;
+      if (!name) return;
+
+      const isTeacher = checkbox.dataset.teacher === "true";
+
+      results.push({
+        Name: name,
+        Date: date,
+        Teacher: isTeacher ? "Yes" : ""
+      });
+    });
 
     if (results.length === 0) {
       alert("出席者を選択してください");
       return;
     }
 
-    const res = await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9eb66c492d1476984c818700b4ed111/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fCOMjmn-aPnmdSpsItaT7_siRj8wWtfc1DGbxYW4Q64", {
+    await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9eb66c492d1476984c818700b4ed111/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fCOMjmn-aPnmdSpsItaT7_siRj8wWtfc1DGbxYW4Q64", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(results)
     });
-
-    console.log("登録レスポンス:", res);
 
     alert("送信完了");
 
