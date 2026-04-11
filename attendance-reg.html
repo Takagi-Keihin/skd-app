@@ -29,58 +29,100 @@ function setToday() {
 
 // 名前一覧取得
 async function loadNames() {
-  const res = await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({})
-  });
+  try {
+    const res = await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
 
-  const data = await res.json();
+    console.log("名前取得レスポンス:", res);
 
-  const container = document.getElementById("nameList");
+    const result = await res.json();
+    console.log("取得データ:", result);
 
-  data.forEach((item, index) => {
-    const row = `
-      <div>
-        <label>
-          <input type="checkbox" name="att_${index}">
-          ${item["名前"]}
-        </label>
-      </div>
-    `;
-    container.innerHTML += row;
-  });
+    // value / body 対応
+    const data = result.value || result.body || result;
 
-  window.nameData = data;
+    const container = document.getElementById("nameList");
+    container.innerHTML = ""; // 初期化
+
+    data.forEach((item, index) => {
+      const name = item["名前"] || item.Name || item.Title || "不明";
+
+      const row = `
+        <div>
+          <label>
+            <input type="checkbox" name="att_${index}">
+            ${name}
+          </label>
+        </div>
+      `;
+      container.innerHTML += row;
+    });
+
+    window.nameData = data;
+
+  } catch (e) {
+    console.error("名前取得エラー:", e);
+    alert("名前一覧の取得に失敗しました");
+  }
 }
 
 // 送信処理
 async function submitData() {
-  const date = document.getElementById("targetDate").value;
-  const results = [];
+  try {
+    console.log("送信開始");
 
-  window.nameData.forEach((item, index) => {
-    const checked = document.querySelector(`input[name="att_${index}"]:checked`);
-    if (checked) {
-results.push({
-  Name: item["名前"],
-  Date: date
-});
-      });
+    if (!window.nameData) {
+      alert("名前データが読み込まれていません");
+      return;
     }
-  });
 
-  await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9eb66c492d1476984c818700b4ed111/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fCOMjmn-aPnmdSpsItaT7_siRj8wWtfc1DGbxYW4Q64", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(results)
-  });
+    const date = document.getElementById("targetDate").value;
 
-  alert("送信完了");
+    if (!date) {
+      alert("日付を選択してください");
+      return;
+    }
+
+    const results = [];
+
+    window.nameData.forEach((item, index) => {
+      const checked = document.querySelector(`input[name="att_${index}"]:checked`);
+      if (checked) {
+        results.push({
+          Name: item["名前"] || item.Name || item.Title,
+          Date: date
+        });
+      }
+    });
+
+    console.log("送信データ:", results);
+
+    if (results.length === 0) {
+      alert("出席者を選択してください");
+      return;
+    }
+
+    const res = await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9eb66c492d1476984c818700b4ed111/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fCOMjmn-aPnmdSpsItaT7_siRj8wWtfc1DGbxYW4Q64", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(results)
+    });
+
+    console.log("登録レスポンス:", res);
+
+    alert("送信完了");
+
+  } catch (e) {
+    console.error("送信エラー:", e);
+    alert("送信に失敗しました");
+  }
 }
 
 // 初期化
