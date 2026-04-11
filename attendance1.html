@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>出欠管理</title>
+</head>
+<body>
+
+<h2>出欠チェック</h2>
+
+<!-- 日付入力 -->
+<label>日付：</label>
+<input type="date" id="targetDate">
+
+<form id="attendanceForm">
+  <div id="nameList"></div>
+  <button type="button" onclick="submitData()">送信</button>
+</form>
+
+<script>
+// 今日の日付をデフォルトセット
+function setToday() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = ("0" + (today.getMonth() + 1)).slice(-2);
+  const dd = ("0" + today.getDate()).slice(-2);
+  document.getElementById("targetDate").value = `${yyyy}-${mm}-${dd}`;
+}
+
+// 名前一覧取得
+async function loadNames() {
+  const res = await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a25491149cda4cf9a48cb2434aea5aba/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HDJuDQfxYJfnj9-OJH6Z1vSGtcL2pBhvL4Sec-C7jS8");
+  const data = await res.json();
+
+  const container = document.getElementById("nameList");
+
+  data.forEach((item, index) => {
+    const row = `
+      <div>
+        <label>
+          <input type="checkbox" name="att_${index}">
+          ${item.Name}
+        </label>
+      </div>
+    `;
+    container.innerHTML += row;
+  });
+
+  window.nameData = data;
+}
+
+// 送信処理
+async function submitData() {
+  const date = document.getElementById("targetDate").value;
+  const results = [];
+
+  window.nameData.forEach((item, index) => {
+    const checked = document.querySelector(`input[name="att_${index}"]:checked`);
+    if (checked) {
+      results.push({
+        Name: item.Name,
+        Date: date
+      });
+    }
+  });
+
+  await fetch("https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/f9eb66c492d1476984c818700b4ed111/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fCOMjmn-aPnmdSpsItaT7_siRj8wWtfc1DGbxYW4Q64", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(results)
+  });
+
+  alert("送信完了");
+}
+
+// 初期化
+setToday();
+loadNames();
+</script>
+
+</body>
+</html>
