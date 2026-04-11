@@ -109,15 +109,11 @@ for(const r of rows){
 
 nameBody.insertAdjacentHTML("beforeend",`
 <tr>
-<td>${esc(r.Title)}</td>
-<td>${esc(r.Grade)}</td>
-<td>${esc(r.Count)}</td>
-
-<td style="${(r.Dan ?? '').trim()==='9級' ? 'background:#ffa500;color:white;font-weight:bold;' : ''}">
-  ${esc(r.Dan ?? "")}
-</td>
-
-<td>${esc(r.Medal)}</td>
+<td>${esc(r.Name ?? "")}</td>
+<td>${esc((r.Count ?? "").toString().trim())}</td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 `);
 }
@@ -151,10 +147,10 @@ errorEl.textContent=e;
 }
 }
 
-// ✅ 手動更新のみ
 document
 .getElementById("refreshBtn")
 .addEventListener("click",fetchAll);
+ fetchAll();
 
 </script>
 
