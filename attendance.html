@@ -66,8 +66,22 @@ String(s ?? "").replace(/[&<>"']/g,c=>({
 }[c]));
 
 function formatDate(value){
-const d=new Date(value);
-return Number.isNaN(d)?value:d.toLocaleDateString("ja-JP");
+
+ if(!value) return "";
+
+ // Excelシリアル値対応
+ if(!isNaN(value)){
+
+   const excelEpoch = new Date(1899,11,30);
+   const jsDate = new Date(
+     excelEpoch.getTime() + value*86400000
+   );
+
+   return jsDate.toLocaleDateString("ja-JP");
+ }
+
+ const d=new Date(value);
+ return Number.isNaN(d)?value:d.toLocaleDateString("ja-JP");
 }
 
 // ✅ 上段描画
