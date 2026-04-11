@@ -1,24 +1,86 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dummy Page</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>道場メニュー</title>
 
 <style>
-body{
- font-family:sans-serif;
- text-align:center;
- margin-top:100px;
+body {
+  font-family: sans-serif;
+  background-color: #f5f5f5;
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+}
+
+h1 {
+  margin-bottom: 30px;
+}
+
+.container {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.button {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  text-decoration: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: 0.2s;
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.btn1 { background-color: #007bff; }
+.btn2 { background-color: #6c757d; }
+.btn3 { background-color: #28a745; }
+.btn4 { background-color: #ff9800; }
+
+.footer {
+  margin-top: 30px;
+  font-size: 12px;
+  color: #777;
 }
 </style>
 
 </head>
-
 <body>
 
-<h1>Dummy Page</h1>
-<p>このページはダミーです。</p>
+<h1>道場メニュー</h1>
+
+<div class="container">
+
+  <a class="button btn1" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/medal-reg.html">
+    🥋 乱取りメダル登録
+  </a>
+
+  <a class="button btn2" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/medal-display.html">
+    📜 乱取りメダル履歴（表示のみ）
+  </a>
+
+  <a class="button btn3" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/attendance-reg.html">
+    ✅ 出席入力
+  </a>
+
+  <a class="button btn4" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/attendance.html">
+    📊 稽古参加状況一覧
+  </a>
+
+</div>
+
+<div class="footer">
+  © 道場システム
+</div>
 
 </body>
 </html>
