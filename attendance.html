@@ -18,6 +18,7 @@ th{background:#f6f6f6;text-align:left}
 <body>
 
 <button id="refreshBtn">更新</button>
+<button type="button" onclick="location.href='https://polite-mud-0e4a7f000.7.azurestaticapps.net/attendance-display.html'">日付ごとの参加者一覧</button>
 
 <div id="error" class="error" style="display:none"></div>
 
@@ -33,12 +34,11 @@ th{background:#f6f6f6;text-align:left}
 </table>
 
 <!-- ✅ 下段 -->
-<h3>会員一覧</h3>
 <table>
 <thead>
 <tr>
 <th>名前</th>
-<th>稽古回数</th>
+<th>これまでの参加回数</th>
 </tr>
 </thead>
 <tbody id="nameBody"></tbody>
@@ -66,7 +66,6 @@ function formatDate(value){
 
  if(!value) return "";
 
- // Excelシリアル値対応
  if(!isNaN(value)){
 
    const excelEpoch = new Date(1899,11,30);
@@ -81,7 +80,6 @@ function formatDate(value){
  return Number.isNaN(d)?value:d.toLocaleDateString("ja-JP");
 }
 
-// ✅ 上段描画
 function renderSummary(rows){
 
 summaryBody.innerHTML="";
@@ -97,7 +95,6 @@ summaryBody.insertAdjacentHTML("beforeend",`
 }
 }
 
-// ✅ 下段描画
 function renderNameList(rows){
 
 nameBody.innerHTML="";
@@ -113,17 +110,15 @@ nameBody.insertAdjacentHTML("beforeend",`
 }
 }
 
-// ✅ 更新ボタン押下時のみ
 async function fetchAll(){
 
 try{
 
-// 上段Flow
 const res1 = await fetch(SUMMARY_FLOW_URL);
 let summary = await res1.json();
 if(typeof summary==="string") summary=JSON.parse(summary);
 renderSummary(summary.body ?? summary.value ?? summary);
-// 下段Flow
+
 const res2 = await fetch(NAMELIST_FLOW_URL);
 let namelist = await res2.json();
 if(typeof namelist==="string") namelist=JSON.parse(namelist);
@@ -133,7 +128,6 @@ renderNameList(
   namelist?.body ??
   namelist
 );
-
 
 }catch(e){
 errorEl.style.display="block";
