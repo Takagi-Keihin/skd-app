@@ -75,7 +75,7 @@
 
   <!-- 上段：別Excel（Date / Count） -->
   <div class="section">
-    <h3>参加人数（指導者・出稽古除く）</h3>
+    <h3>（指導者・出稽古除く）</h3>
     <div id="summaryResult"></div>
   </div>
 
@@ -154,7 +154,7 @@
       }
 
       // Countのキー揺れに対応
-      let html = "<table><tr><th>Count</th></tr>";
+      let html = "<table><tr><th>参加人数</th></tr>";
 
 rows.forEach(r => {
   const c = r.Count ?? r.count ?? "";
