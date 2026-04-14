@@ -1,163 +1,236 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>稽古参加履歴</title>
 
 <style>
-body{
- font-family:sans-serif;
- margin:0;
- padding:10px;
- background:#f4f6f9;
-}
-.container{
- max-width:600px;
- margin:auto;
- background:white;
- padding:15px;
- border-radius:10px;
- box-shadow:0 2px 6px rgba(0,0,0,0.1);
-}
-h2{text-align:center;}
-input,button{
- width:100%;
- padding:12px;
- margin:10px 0;
- font-size:16px;
-}
-button{
- background:#0078d4;
- color:white;
- border:none;
- border-radius:5px;
-}
-.deleteBtn{
- background:#d83b01;
-}
-table{
- width:100%;
- border-collapse:collapse;
- margin-top:15px;
-}
-th,td{
- border:1px solid #ddd;
- padding:8px;
- text-align:center;
-}
-th{
- background:#0078d4;
- color:white;
-}
+  body{
+    font-family:sans-serif;
+    margin:0;
+    padding:10px;
+    background:#f4f6f9;
+  }
+  .container{
+    max-width:700px;
+    margin:auto;
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+  }
+  h2{text-align:center; margin-top:0;}
+  h3{margin:18px 0 8px 0; font-size:16px;}
+  input,button{
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    font-size:16px;
+    box-sizing:border-box;
+  }
+  button{
+    background:#0078d4;
+    color:white;
+    border:none;
+    border-radius:5px;
+  }
+  .section{
+    margin-top:12px;
+    padding-top:8px;
+    border-top:1px solid #eee;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+  }
+  th,td{
+    border:1px solid #ddd;
+    padding:8px;
+    text-align:center;
+    font-size:15px;
+  }
+  th{
+    background:#0078d4;
+    color:white;
+  }
+  .msg{
+    margin:10px 0;
+    padding:10px;
+    background:#f7f7f7;
+    border:1px solid #e5e5e5;
+    border-radius:6px;
+  }
 </style>
 </head>
 
 <body>
-
 <div class="container">
 
-<h2>稽古参加履歴表示</h2>
+  <h2>稽古参加履歴表示</h2>
 
-<input type="date" id="targetDate">
+  <input type="date" id="targetDate" />
+  <button onclick="reloadAll()">表示</button>
 
-<button onclick="loadHistory()">表示</button>
+  <!-- 上段：別Excel（Date / Count） -->
+  <div class="section">
+    <h3>上段：日別 回数（Date / Count）</h3>
+    <div id="summaryResult"></div>
+  </div>
 
-<div id="result"></div>
+  <!-- 下段：名前一覧 -->
+  <div class="section">
+    <h3>下段：参加者 名前一覧</h3>
+    <div id="namesResult"></div>
+  </div>
 
 </div>
 
 <script>
+  // =========================
+  // ★ フローURL（ここに貼る）
+  // =========================
 
-// =========================
-// ★ 履歴取得フローURL
-// =========================
-const HISTORY_FLOW_URL =
-"https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/8c64611d77ed40baa7d2b648f66c7acd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=E84R2IsN7FgBbmGgGkuQh5yG7AagRfl6bIpVKOuoC3M";
+  // 上段用：別Excelの Date / Count を返すフロー
+  const SUMMARY_FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/127e923924a143c8aad4096eed32acfb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=y_mO84QgcocHJn2QtCb9gbrNluZmxag4ehyqQaWNAC0";
+
+  // 下段用：今までの「名前一覧」を返すフロー（あなたの既存フロー）
+  const NAMES_FLOW_URL   = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/8c64611d77ed40baa7d2b648f66c7acd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=E84R2IsN7FgBbmGgGkuQh5yG7AagRfl6bIpVKOuoC3M";
 
 
-// =========================
-// 履歴表示（Excel版）
-// =========================
-async function loadHistory() {
-
-  const selectedDate = document.getElementById("targetDate").value;
-
-  if (!selectedDate) {
-    alert("日付を選択してください");
-    return;
+  // =========================
+  // 共通：フローの返却から配列を取り出す（配列/ value / data / body 等に対応）
+  // =========================
+  function extractRows(payload){
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.value)) return payload.value;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.body)) return payload.body;
+    if (Array.isArray(payload?.body?.value)) return payload.body.value;
+    return [];
   }
 
-  try {
-    const response = await fetch(HISTORY_FLOW_URL, {
+  async function callFlow(url, bodyObj){
+    const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: selectedDate })
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(bodyObj ?? {})
     });
 
-    // 念のため text で受けてから JSON 化（フローが文字列返しのケース対策）
-    const text = await response.text();
+    // 念のため text → JSON（たまに文字列返しがあるため）
+    const text = await res.text();
     let payload;
     try {
       payload = JSON.parse(text);
-    } catch (e) {
-      console.log("JSON parse failed. raw text=", text);
+    } catch(e) {
+      console.log("JSON parse failed raw=", text);
       throw new Error("フロー応答がJSONではありません");
     }
-
-    console.log("フロー応答 payload:", payload);
-
-    // 配列をどこから取り出すか（よくある包みを全部吸収）
-    const rows =
-      Array.isArray(payload) ? payload :
-      Array.isArray(payload.value) ? payload.value :
-      Array.isArray(payload.data) ? payload.data :
-      Array.isArray(payload.body) ? payload.body :
-      Array.isArray(payload.body?.value) ? payload.body.value :
-      [];
-
-    console.log("rows:", rows);
-
-    if (!rows || rows.length === 0) {
-      document.getElementById("result").innerHTML = "<p>該当データがありません</p>";
-      return;
-    }
-
-    let html = "<table>";
-html += "<tr><th>名前</th></tr>";
-
-rows.forEach(item => {
-  const name = item.Name ?? item.name ?? "";
-  html += `<tr><td>${name}</td></tr>`;
-});
-
-html += "</table>";
-    document.getElementById("result").innerHTML = html;
-
-  } catch (error) {
-    alert("取得エラー");
-    console.log(error);
+    return payload;
   }
-}
 
 
- // ✅ ページ表示時に今日の日付を自動入力
-window.addEventListener("DOMContentLoaded", () => {
+  // =========================
+  // 上段：Date / Count 表
+  // =========================
+  async function loadSummary(){
+    const selectedDate = document.getElementById("targetDate").value;
 
- const today = new Date();
+    const host = document.getElementById("summaryResult");
+    host.innerHTML = "<div class='msg'>読み込み中...</div>";
 
- const yyyy = today.getFullYear();
- const mm = String(today.getMonth()+1).padStart(2,'0');
- const dd = String(today.getDate()).padStart(2,'0');
+    try{
+      // 送るパラメータ：必要に応じてフロー側で使えるよう date を渡す
+      const payload = await callFlow(SUMMARY_FLOW_URL, { date: selectedDate });
 
- document.getElementById("targetDate").value =
- `${yyyy}-${mm}-${dd}`;
+      console.log("SUMMARY payload:", payload);
 
- loadHistory()
+      const rows = extractRows(payload);
 
-});
+      if (!rows || rows.length === 0){
+        host.innerHTML = "<div class='msg'>該当データがありません</div>";
+        return;
+      }
 
+      // Date/Countのキー揺れに対応
+      let html = "<table><tr><th>Date</th><th>Count</th></tr>";
+
+      rows.forEach(r => {
+        const d = r.Date ?? r.date ?? "";
+        const c = r.Count ?? r.count ?? "";
+        html += `<tr><td>${d}</td><td>${c}</td></tr>`;
+      });
+
+      html += "</table>";
+      host.innerHTML = html;
+
+    }catch(err){
+      console.log(err);
+      host.innerHTML = "<div class='msg'>取得エラー（上段）</div>";
+    }
+  }
+
+
+  // =========================
+  // 下段：名前一覧（Nameのみ）
+  // =========================
+  async function loadNames(){
+    const selectedDate = document.getElementById("targetDate").value;
+
+    const host = document.getElementById("namesResult");
+    host.innerHTML = "<div class='msg'>読み込み中...</div>";
+
+    try{
+      // 今までと同じく date を渡す（フローが必要なら使う）
+      const payload = await callFlow(NAMES_FLOW_URL, { date: selectedDate });
+
+      console.log("NAMES payload:", payload);
+
+      const rows = extractRows(payload);
+
+      if (!rows || rows.length === 0){
+        host.innerHTML = "<div class='msg'>該当データがありません</div>";
+        return;
+      }
+
+      let html = "<table><tr><th>名前</th></tr>";
+
+      rows.forEach(r => {
+        const name = r.Name ?? r.name ?? "";
+        html += `<tr><td>${name}</td></tr>`;
+      });
+
+      html += "</table>";
+      host.innerHTML = html;
+
+    }catch(err){
+      console.log(err);
+      host.innerHTML = "<div class='msg'>取得エラー（下段）</div>";
+    }
+  }
+
+
+  // =========================
+  // 表示ボタン／初期ロード
+  // =========================
+  function reloadAll(){
+    loadSummary();
+    loadNames();
+  }
+
+  // ページ表示時に今日の日付をセットして自動ロード
+  window.addEventListener("DOMContentLoaded", () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    document.getElementById("targetDate").value = `${yyyy}-${mm}-${dd}`;
+
+    reloadAll();
+  });
 </script>
 
 </body>
 </html>
+``
