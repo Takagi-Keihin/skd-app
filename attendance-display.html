@@ -79,72 +79,81 @@ const HISTORY_FLOW_URL =
 // =========================
 // 履歴表示（SharePoint版）
 // =========================
-async function loadHistory(){
+async function loadHistory() {
 
-const selectedDate =
-document.getElementById("targetDate").value;
+  const selectedDate = document.getElementById("targetDate").value;
 
-if(!selectedDate){
- alert("日付を選択してください");
- return;
-}
+  if (!selectedDate) {
+    alert("日付を選択してください");
+    return;
+  }
 
-try{
+  try {
+    const response = await fetch(HISTORY_FLOW_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: selectedDate })
+    });
 
-const response = await fetch(HISTORY_FLOW_URL,{
- method:"POST",
- headers:{ "Content-Type":"application/json" },
- body:JSON.stringify({date:selectedDate})
-});
+    // 念のため text で受けてから JSON 化（フローが文字列返しのケース対策）
+    const text = await response.text();
+    let payload;
+    try {
+      payload = JSON.parse(text);
+    } catch (e) {
+      console.log("JSON parse failed. raw text=", text);
+      throw new Error("フロー応答がJSONではありません");
+    }
 
-const data = await response.json();
+    console.log("フロー応答 payload:", payload);
 
-console.log("フロー応答:",data);
+    // 配列をどこから取り出すか（よくある包みを全部吸収）
+    const rows =
+      Array.isArray(payload) ? payload :
+      Array.isArray(payload.value) ? payload.value :
+      Array.isArray(payload.data) ? payload.data :
+      Array.isArray(payload.body) ? payload.body :
+      Array.isArray(payload.body?.value) ? payload.body.value :
+      [];
 
-if(!data || data.length === 0){
- document.getElementById("result").innerHTML =
- "<p>該当データがありません</p>";
- return;
-}
+    console.log("rows:", rows);
 
-let html="<table>";
-html+="<tr><th>名前</th><th>回数</th><th>メダル</th></tr>";
+    if (!rows || rows.length === 0) {
+      document.getElementById("result").innerHTML = "<p>該当データがありません</p>";
+      return;
+    }
 
-let hit=false;
+    // 列の存在を見てヘッダーを動的に（Date/Medalが来ても対応）
+    const hasDate  = rows.some(r => r.Date != null || r.date != null);
+    const hasMedal = rows.some(r => r.Medal != null || r.medal != null);
 
-data.forEach(item=>{
+    let html = "<table><tr>";
+    html += "<th>名前</th><th>回数</th>";
+    if (hasDate)  html += "<th>日付</th>";
+    if (hasMedal) html += "<th>メダル</th>";
+    html += "</tr>";
 
-// ★ SharePointはスペース対策必須
-const spDate = (item.Date ?? "").trim();
-const selDate = selectedDate.trim();
+    rows.forEach(item => {
+      const name  = item.Name ?? item.name ?? "";
+      const count = item.Count ?? item.count ?? "";
+      const date  = item.Date ?? item.date ?? "";
+      const medal = item.Medal ?? item.medal ?? "";
 
-if(spDate === selDate){
+      html += "<tr>";
+      html += `<td>${name}</td>`;
+      html += `<td>${count}</td>`;
+      if (hasDate)  html += `<td>${date}</td>`;
+      if (hasMedal) html += `<td>${medal}</td>`;
+      html += "</tr>";
+    });
 
-hit=true;
+    html += "</table>";
+    document.getElementById("result").innerHTML = html;
 
- html+=`
- <tr>
- <td>${item.Name ?? ""}</td>
- <td>${item.Count ?? ""}</td>
- <td>${item.Medal ?? ""}</td>
- </tr>`;
-}
-});
-
-html+="</table>";
-
-if(!hit){
- document.getElementById("result").innerHTML =
- "<p>該当データがありません</p>";
-}else{
- document.getElementById("result").innerHTML=html;
-}
-
-}catch(error){
-alert("取得エラー");
-console.log(error);
-}
-
+  } catch (error) {
+    alert("取得エラー");
+    console.log(error);
+  }
 }
 
 
