@@ -73,9 +73,10 @@ medals:0
 players[name].dates.add(date);
 
 /* Medalカウント */
-if(medal==="🎖"){
+if(medal && medal.includes("🎖")){
 players[name].medals++;
 }
+
 
 });
 
