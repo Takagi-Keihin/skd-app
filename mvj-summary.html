@@ -86,7 +86,7 @@ async function loadData(){
       players[name].dates.add(dateKey);
 
       // 🎖 の判定（Variation Selector なども吸収）
-      if(medal && String(medal).includes("🎖")){
+      if(medal && String(medal).includes("🏅")){
         players[name].medals++;
       }
     });
