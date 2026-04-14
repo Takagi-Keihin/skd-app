@@ -46,6 +46,28 @@ h1 {
 .btn3 { background-color: #28a745; }
 .btn4 { background-color: #ff9800; }
 
+/* ✅ 横並び用 */
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+/* ✅ PC時 */
+.row .button {
+  width: 50%;
+  margin-bottom: 15px;
+}
+
+/* ✅ スマホ時は縦並び */
+@media (max-width: 600px){
+  .row {
+    flex-direction: column;
+  }
+  .row .button {
+    width: 100%;
+  }
+}
+
 .footer {
   margin-top: 30px;
   font-size: 12px;
@@ -68,9 +90,18 @@ h1 {
     📜 乱取りメダル履歴（表示のみ）
   </a>
 
-  <a class="button btn3" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/attendance-reg.html">
-    ✅ 出席入力
-  </a>
+  <!-- ✅ 出席入力＋出席確認 横並び -->
+  <div class="row">
+
+    <a class="button btn3" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/attendance-reg.html">
+      ✅ 出席入力
+    </a>
+
+    <a class="button btn3" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/attendance-display.html">
+      📋 出席確認
+    </a>
+
+  </div>
 
   <a class="button btn4" href="https://polite-mud-0e4a7f000.7.azurestaticapps.net/attendance.html">
     📊 稽古参加状況一覧
