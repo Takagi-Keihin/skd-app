@@ -1,122 +1,131 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-
-body{font-family:sans-serif;padding:10px;}
-table{width:100%;border-collapse:collapse;}
-th,td{border:1px solid #ccc;padding:8px;text-align:center;}
-th{background:#f2f2f2;}
-
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:sans-serif;padding:10px;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{border:1px solid #ccc;padding:8px;text-align:center;}
+    th{background:#f2f2f2;}
+    .muted{color:#666;font-size:12px;}
+  </style>
 </head>
-
 <body>
 
-<h3>今月の成績一覧</h3>
+  <h3>今月の成績一覧</h3>
+  <h3>稽古日数：<span id="practiceDays">0</span>日</h3>
+  <div class="muted" id="debug"></div>
 
-<h3>稽古日数：<span id="practiceDays">0</span>日</h3>
-
-<table id="resultTable">
-<thead>
-<tr>
-<th>名前</th>
-<th>稽古日数</th>
-<th>メダル</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
+  <table id="resultTable">
+    <thead>
+      <tr>
+        <th>名前</th>
+        <th>稽古日数</th>
+        <th>メダル</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
 <script>
-
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ffa50cff0e824a01815e70c8725d3ea8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=oMvFcwLLgRwkdXfFnUZpPrYtU06wBGT7VBBE1GTMgGk";
 
+function toDateKey(raw){
+  // raw が "2026/04/09" でも "2026-04-09T..." でもOKにする
+  if(!raw) return null;
+
+  // すでに yyyy/MM/dd の文字列ならそのまま使う（安全）
+  if(typeof raw === "string" && /^\d{4}\/\d{2}\/\d{2}$/.test(raw)) return raw;
+
+  // ISOなどは Date化して yyyy-MM-dd -> yyyy/MM/dd に揃える
+  const d = new Date(raw);
+  if(isNaN(d.getTime())) return null;
+
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${yyyy}/${mm}/${dd}`;
+}
+
 async function loadData(){
+  const tbody = document.querySelector("#resultTable tbody");
+  const debug = document.getElementById("debug");
+  tbody.innerHTML = "";
+  debug.textContent = "読み込み中…";
 
-const res = await fetch(FLOW_URL,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({})
-});
+  try{
+    const res = await fetch(FLOW_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({})
+    });
 
-const result = await res.json();
+    const result = await res.json();
 
-/* ★ PowerAutomate対策 ★ */
-const data = result.value || result.body || result;
+    // 配列をできるだけ確実に取り出す
+    let data = result?.value ?? result?.body?.value ?? result?.body ?? result;
+    if(!Array.isArray(data)) data = [];
 
-/* ---------------------- */
-let practiceDates = new Set();
-let players = {};
+    let practiceDates = new Set();
+    let players = {};
 
-data.forEach(item=>{
+    data.forEach(item => {
+      const name  = item?.Name ?? item?.["名前"] ?? item?.Title;
+      const medal = item?.Medal ?? item?.["Medal"] ?? item?.["メダル"];
 
-const name = item.Name;
-const medal = item.Medal;
-practiceDates.add(date);
+      const dateKey = toDateKey(item?.Date ?? item?.["Date"] ?? item?.["日付"]);
+      if(dateKey) practiceDates.add(dateKey);   // ← dateKey を作った後に add
 
-/* ★ Date型修正 ★ */
-const date = new Date(item.Date)
-.toISOString()
-.split("T")[0];
-/* ---------------- */
+      if(!name || !dateKey) return;
 
-if(!name) return;
+      if(!players[name]){
+        players[name] = { dates:new Set(), medals:0 };
+      }
 
-if(!players[name]){
-players[name]={
-dates:new Set(),
-medals:0
-};
-}
+      players[name].dates.add(dateKey);
 
-/* Unique日付 */
-players[name].dates.add(date);
+      // 🎖 の判定（Variation Selector なども吸収）
+      if(medal && String(medal).includes("🎖")){
+        players[name].medals++;
+      }
+    });
 
-/* Medalカウント */
-if(medal && medal.includes("🏅")){
-players[name].medals++;
-}
+    // 表示用配列
+    let final = Object.keys(players).map(name => ({
+      name,
+      days: players[name].dates.size,
+      medals: players[name].medals
+    }));
 
+    // メダル降順 → 同数なら稽古日数降順
+    final.sort((a,b) =>
+      Number(b.medals) - Number(a.medals) ||
+      Number(b.days)   - Number(a.days)
+    );
 
-});
+    // 稽古日数（ユニーク日付数）表示
+    document.getElementById("practiceDays").innerText = practiceDates.size;
 
-/* 表示用配列 */
-let final = Object.keys(players).map(name=>({
-name:name,
-days:players[name].dates.size,
-medals:players[name].medals
-}));
+    // 表描画
+    tbody.innerHTML = "";
+    final.forEach(p => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${p.name}</td>
+          <td>${p.days}</td>
+          <td>${p.medals}</td>
+        </tr>`;
+    });
 
-/* Medal多い順 */
-final.sort((a,b)=>
-Number(b.medals)-Number(a.medals) ||
-Number(b.days)-Number(a.days)
-);
-  
-/* 表示 */
-
-document.getElementById("practiceDays").innerText =
-practiceDates.size;
-
-const tbody = document.querySelector("#resultTable tbody");
-tbody.innerHTML="";
-
-final.forEach(p=>{
-tbody.innerHTML+=`
-<tr>
-<td>${p.name}</td>
-<td>${p.days}</td>
-<td>${p.medals}</td>
-</tr>`;
-});
-
+    debug.textContent = `取得件数: ${data.length} / 集計人数: ${final.length}`;
+  }catch(e){
+    console.error(e);
+    document.getElementById("debug").textContent = "エラー: " + (e?.message ?? e);
+  }
 }
 
 loadData();
-
 </script>
 
 </body>
