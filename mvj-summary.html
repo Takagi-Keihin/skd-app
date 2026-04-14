@@ -99,9 +99,10 @@ async function loadData(){
     }));
 
     // メダル降順 → 同数なら稽古日数降順
-    final.sort((a,b) =>
-      Number(b.medals) - Number(a.medals) ||
-      Number(b.days)   - Number(a.days)
+final.sort((a,b)=>
+Number(b.days)-Number(a.days) ||
+Number(b.medals)-Number(a.medals)
+);
     );
 
     // 稽古日数（ユニーク日付数）表示
