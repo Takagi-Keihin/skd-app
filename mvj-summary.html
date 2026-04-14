@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{
+  font-family:sans-serif;
+  padding:10px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td{
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+
+th{
+  background:#f2f2f2;
+}
+
+</style>
+</head>
+
+<body>
+
+<h3>成績一覧</h3>
+
+<table id="resultTable">
+<thead>
+<tr>
+<th>名前</th>
+<th>稽古日数</th>
+<th>メダル</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<script>
+
+const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9d5f0b466e5a47e5bd01ea704c0e4267/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p1WKlWmUN0TfFU9CnGdIzLUVPHB7zzg_mtGt13uP6mE";
+
+async function loadData(){
+
+const res = await fetch(FLOW_URL,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({})
+});
+
+const result = await res.json();
+const data = result.value || result.body || result;
+
+let players = {};
+
+// --------- 集計処理 ---------
+
+data.forEach(item=>{
+
+const name = item.Name;
+const date = item.Date;
+const medal = item.Medal;
+
+if(!name) return;
+
+if(!players[name]){
+players[name] = {
+dates:new Set(),
+medals:0
+};
+}
+
+players[name].dates.add(date);
+
+if(medal=="🎖"){
+players[name].medals++;
+}
+
+});
+
+// --------- 配列化 ---------
+
+let final = Object.keys(players).map(name=>({
+name:name,
+days:players[name].dates.size,
+medals:players[name].medals
+}));
+
+// --------- メダル順ソート ---------
+
+final.sort((a,b)=>b.medals-a.medals);
+
+// --------- 表に描画 ---------
+
+const tbody = document.querySelector("#resultTable tbody");
+tbody.innerHTML="";
+
+final.forEach(p=>{
+
+const row = `
+<tr>
+<td>${p.name}</td>
+<td>${p.days}</td>
+<td>${p.medals}</td>
+</tr>
+`;
+
+tbody.innerHTML+=row;
+
+});
+
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>
