@@ -77,7 +77,7 @@ const HISTORY_FLOW_URL =
 
 
 // =========================
-// 履歴表示（SharePoint版）
+// 履歴表示（Excel版）
 // =========================
 async function loadHistory() {
 
@@ -123,31 +123,15 @@ async function loadHistory() {
       return;
     }
 
-    // 列の存在を見てヘッダーを動的に（Date/Medalが来ても対応）
-    const hasDate  = rows.some(r => r.Date != null || r.date != null);
-    const hasMedal = rows.some(r => r.Medal != null || r.medal != null);
+    let html = "<table>";
+html += "<tr><th>名前</th></tr>";
 
-    let html = "<table><tr>";
-    html += "<th>名前</th><th>回数</th>";
-    if (hasDate)  html += "<th>日付</th>";
-    if (hasMedal) html += "<th>メダル</th>";
-    html += "</tr>";
+rows.forEach(item => {
+  const name = item.Name ?? item.name ?? "";
+  html += `<tr><td>${name}</td></tr>`;
+});
 
-    rows.forEach(item => {
-      const name  = item.Name ?? item.name ?? "";
-      const count = item.Count ?? item.count ?? "";
-      const date  = item.Date ?? item.date ?? "";
-      const medal = item.Medal ?? item.medal ?? "";
-
-      html += "<tr>";
-      html += `<td>${name}</td>`;
-      html += `<td>${count}</td>`;
-      if (hasDate)  html += `<td>${date}</td>`;
-      if (hasMedal) html += `<td>${medal}</td>`;
-      html += "</tr>";
-    });
-
-    html += "</table>";
+html += "</table>";
     document.getElementById("result").innerHTML = html;
 
   } catch (error) {
