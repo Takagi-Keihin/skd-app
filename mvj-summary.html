@@ -15,7 +15,9 @@ th{background:#f2f2f2;}
 
 <body>
 
-<h3>成績一覧</h3>
+<h3>今月の成績一覧</h3>
+
+<h3>稽古日数：<span id="practiceDays">0</span>日</h3>
 
 <table id="resultTable">
 <thead>
@@ -46,13 +48,14 @@ const result = await res.json();
 const data = result.value || result.body || result;
 
 /* ---------------------- */
-
+let practiceDates = new Set();
 let players = {};
 
 data.forEach(item=>{
 
 const name = item.Name;
 const medal = item.Medal;
+practiceDates.add(date);
 
 /* ★ Date型修正 ★ */
 const date = new Date(item.Date)
@@ -91,6 +94,10 @@ medals:players[name].medals
 final.sort((a,b)=>b.medals-a.medals);
 
 /* 表示 */
+
+document.getElementById("practiceDays").innerText =
+practiceDates.size;
+
 const tbody = document.querySelector("#resultTable tbody");
 tbody.innerHTML="";
 
