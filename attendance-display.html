@@ -75,13 +75,13 @@
 
   <!-- 上段：別Excel（Date / Count） -->
   <div class="section">
-    <h3>上段：日別 回数（Date / Count）</h3>
+    <h3>参加人数（指導者・出稽古除く）</h3>
     <div id="summaryResult"></div>
   </div>
 
   <!-- 下段：名前一覧 -->
   <div class="section">
-    <h3>下段：参加者 名前一覧</h3>
+    <h3>参加者 名前一覧</h3>
     <div id="namesResult"></div>
   </div>
 
@@ -153,17 +153,16 @@
         return;
       }
 
-      // Date/Countのキー揺れに対応
-      let html = "<table><tr><th>Date</th><th>Count</th></tr>";
+      // Countのキー揺れに対応
+      let html = "<table><tr><th>Count</th></tr>";
 
-      rows.forEach(r => {
-        const d = r.Date ?? r.date ?? "";
-        const c = r.Count ?? r.count ?? "";
-        html += `<tr><td>${d}</td><td>${c}</td></tr>`;
-      });
+rows.forEach(r => {
+  const c = r.Count ?? r.count ?? "";
+  html += `<tr><td>${c}</td></tr>`;
+});
 
-      html += "</table>";
-      host.innerHTML = html;
+html += "</table>";
+host.innerHTML = html;
 
     }catch(err){
       console.log(err);
@@ -233,4 +232,3 @@
 
 </body>
 </html>
-``
