@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>支払い管理</title>
+  <style>
+    body {
+      font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f6f8fb;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 760px;
+      margin: auto;
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+    .row {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    select, button {
+      width: 100%;
+      font-size: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #cfd7e3;
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      border: none;
+      font-weight: 600;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .list {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .item:last-child {
+      border-bottom: none;
+    }
+    .event-name {
+      flex: 1;
+    }
+    .checkbox-wrap {
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      display: none;
+      white-space: pre-wrap;
+    }
+    .status.info {
+      display: block;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .status.error {
+      display: block;
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <h1>支払い管理</h1>
+
+    <div class="row">
+      <label for="nameSelect">氏名</label>
+      <select id="nameSelect">
+        <option value="">氏名を選択してください</option>
+        <option value="田中">田中</option>
+        <option value="佐藤">佐藤</option>
+        <option value="高橋">高橋</option>
+      </select>
+      <div class="muted" style="margin-top:8px;">
+        ※ 実運用ではこの氏名一覧も別フローから取得可能です
+      </div>
+    </div>
+
+    <div class="row">
+      <button id="loadBtn">大会一覧取得</button>
+    </div>
+
+    <div class="row">
+      <label>大会名一覧</label>
+      <div id="eventList" class="list">
+        <div class="item">
+          <div class="event-name">氏名を選択して「大会一覧取得」を押してください</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button id="submitBtn" disabled>支払済を送信</button>
+    </div>
+
+    <div id="statusBox" class="status"></div>
+  </div>
+
+  <script>
+    // Power Automate の HTTP POST URL に置き換える
+    const GET_FLOW_URL = "YOUR_GET_FLOW_URL";
+    const UPDATE_FLOW_URL = "YOUR_UPDATE_FLOW_URL";
+
+    const state = {
+      selectedName: "",
+      items: [], // { rowId, tournamentName, isPaid, checked }
+      isLoading: false
+    };
+
+    const app = document.getElementById("app");
+    const nameSelect = document.getElementById("nameSelect");
+    const loadBtn = document.getElementById("loadBtn");
+    const submitBtn = document.getElementById("submitBtn");
+    const eventList = document.getElementById("eventList");
+    const statusBox = document.getElementById("statusBox");
+
+    nameSelect.addEventListener("change", () => {
+      state.selectedName = nameSelect.value;
+      state.items = [];
+      renderEvents();
+      updateButtons();
+      clearStatus();
+    });
+
+    loadBtn.addEventListener("click", async () => {
+      clearStatus();
+
+      if (!state.selectedName) {
+        showError("氏名を選択してください。");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const response = await fetch(GET_FLOW_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            selectedName: state.selectedName
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`一覧取得に失敗しました: HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log("get result", result);
+
+        if (!result.ok) {
+          throw new Error(result.message || "一覧取得に失敗しました。");
+        }
+
+        state.items = (result.items || []).map(item => ({
+          rowId: item.rowId,
+          tournamentName: item.tournamentName,
+          isPaid: !!item.isPaid,
+          checked: false
+        }));
+
+        renderEvents();
+        updateButtons();
+        showInfo(result.message || "取得しました。");
+
+      } catch (err) {
+        console.error(err);
+        showError(err.message || "エラーが発生しました。");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    submitBtn.addEventListener("click", async () => {
+      clearStatus();
+
+      if (!state.selectedName) {
+        showError("氏名を選択してください。");
+        return;
+      }
+
+      const checkedItems = state.items
+        .filter(x => x.checked)
+        .map(x => ({
+          rowId: x.rowId,
+          tournamentName: x.tournamentName
+        }));
+
+      if (checkedItems.length === 0) {
+        showError("支払済にする大会を1件以上選択してください。");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const response = await fetch(UPDATE_FLOW_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            selectedName: state.selectedName,
+            checkedItems: checkedItems
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`更新に失敗しました: HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log("update result", result);
+
+        if (!result.ok) {
+          throw new Error(result.message || "更新に失敗しました。");
+        }
+
+        showInfo(result.message || "更新しました。");
+
+        // 更新後に再取得して画面を最新化
+        await reloadList();
+
+      } catch (err) {
+        console.error(err);
+        showError(err.message || "エラーが発生しました。");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    async function reloadList() {
+      const response = await fetch(GET_FLOW_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          selectedName: state.selectedName
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`再取得に失敗しました: HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.ok) {
+        throw new Error(result.message || "再取得に失敗しました。");
+      }
+
+      state.items = (result.items || []).map(item => ({
+        rowId: item.rowId,
+        tournamentName: item.tournamentName,
+        isPaid: !!item.isPaid,
+        checked: false
+      }));
+
+      renderEvents();
+      updateButtons();
+    }
+
+    function renderEvents() {
+      eventList.innerHTML = "";
+
+      if (!state.selectedName) {
+        eventList.innerHTML = `
+          <div class="item">
+            <div class="event-name">氏名を選択して「大会一覧取得」を押してください</div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.items.length === 0) {
+        eventList.innerHTML = `
+          <div class="item">
+            <div class="event-name">対象データはありません</div>
+          </div>
+        `;
+        return;
+      }
+
+      state.items.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.className = "item";
+
+        const eventDiv = document.createElement("div");
+        eventDiv.className = "event-name";
+        eventDiv.textContent = item.tournamentName;
+
+        const wrap = document.createElement("label");
+        wrap.className = "checkbox-wrap";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = item.checked;
+        checkbox.addEventListener("change", () => {
+          state.items[index].checked = checkbox.checked;
+          updateButtons();
+        });
+
+        const span = document.createElement("span");
+        span.textContent = "支払い完了";
+
+        wrap.appendChild(checkbox);
+        wrap.appendChild(span);
+
+        row.appendChild(eventDiv);
+        row.appendChild(wrap);
+
+        eventList.appendChild(row);
+      });
+    }
+
+    function updateButtons() {
+      const hasChecked = state.items.some(x => x.checked);
+      loadBtn.disabled = state.isLoading || !state.selectedName;
+      submitBtn.disabled = state.isLoading || !state.selectedName || !hasChecked;
+    }
+
+    function setLoading(isLoading) {
+      state.isLoading = isLoading;
+      app.classList.toggle("loading", isLoading);
+      updateButtons();
+    }
+
+    function clearStatus() {
+      statusBox.className = "status";
+      statusBox.textContent = "";
+    }
+
+    function showInfo(message) {
+      statusBox.className = "status info";
+      statusBox.textContent = message;
+    }
+
+    function showError(message) {
+      statusBox.className = "status error";
+      statusBox.textContent = message;
+    }
+
+    // 初期表示
+    updateButtons();
+    renderEvents();
+  </script>
+</body>
+</html>
