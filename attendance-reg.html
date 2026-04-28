@@ -11,6 +11,11 @@
 <label>日付：</label>
 <input type="date" id="targetDate">
 
+<!-- ✅ 追加：人数表示 -->
+<div id="countArea" style="margin:10px 0; font-weight:bold;">
+  指導者：0名 ／ その他：0名
+</div>
+
 <form id="attendanceForm">
   <div id="nameList"></div>
   <button type="button" onclick="submitData()">送信</button>
@@ -23,6 +28,26 @@ function setToday() {
   const mm = ("0" + (today.getMonth() + 1)).slice(-2);
   const dd = ("0" + today.getDate()).slice(-2);
   document.getElementById("targetDate").value = `${yyyy}-${mm}-${dd}`;
+}
+
+// ✅ 追加：カウント更新関数
+function updateCount() {
+  const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+  let teacherCount = 0;
+  let normalCount = 0;
+
+  checkboxes.forEach(cb => {
+    if (cb.checked) {
+      if (cb.dataset.teacher === "true") {
+        teacherCount++;
+      } else {
+        normalCount++;
+      }
+    }
+  });
+
+  document.getElementById("countArea").innerText =
+    `指導者：${teacherCount}名 ／ その他：${normalCount}名`;
 }
 
 async function loadNames() {
@@ -51,7 +76,8 @@ async function loadNames() {
       const row = `
         <div>
           <label>
-            <input type="checkbox" name="att_${index}" data-teacher="${isTeacher}">
+            <!-- ✅ 変更：onchange追加 -->
+            <input type="checkbox" name="att_${index}" data-teacher="${isTeacher}" onchange="updateCount()">
             ${name} ${teacherLabel}
           </label>
         </div>
@@ -106,8 +132,23 @@ async function submitData() {
       return;
     }
 
-    // ★ 最終確認
-    const confirmMessage = `以下のメンバーを送信します。\n\n${selectedNames.join("\n")}\n\nよろしいですか？`;
+    // ✅ 変更：人数も確認に表示
+    let teacherCount = 0;
+    let normalCount = 0;
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      if (cb.checked) {
+        if (cb.dataset.teacher === "true") {
+          teacherCount++;
+        } else {
+          normalCount++;
+        }
+      }
+    });
+
+    const confirmMessage =
+      `以下のメンバーを送信します。\n\n${selectedNames.join("\n")}\n\n` +
+      `指導者：${teacherCount}名 ／ その他：${normalCount}名\n\nよろしいですか？`;
+
     if (!confirm(confirmMessage)) {
       return;
     }
@@ -122,8 +163,10 @@ async function submitData() {
 
     alert("送信完了");
 
-    // ★ チェックボックス全OFF
     document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+    // ✅ 追加：リセット後もカウント更新
+    updateCount();
 
   } catch (e) {
     console.error("送信エラー:", e);
