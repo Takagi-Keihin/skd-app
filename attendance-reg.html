@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>稽古参加管理</title>
 
-<!-- ✅ スマホ対応（これが重要） -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -14,10 +13,11 @@
   }
   label {
     display: block;
-    padding: 6px 0;
+    padding: 8px 0;
+    cursor: pointer;
   }
   input[type="checkbox"] {
-    transform: scale(1.2); /* ✅ チェックボックス拡大 */
+    transform: scale(1.2);
     margin-right: 8px;
   }
   button {
@@ -26,7 +26,7 @@
     margin-top: 10px;
   }
   #nameList {
-    max-height: 60vh; /* ✅ スクロール領域確保 */
+    max-height: 60vh;
     overflow-y: auto;
   }
 </style>
@@ -42,12 +42,10 @@
 <form id="attendanceForm">
   <div id="nameList"></div>
 
-  <!-- ✅ 送信直前カウント -->
   <div id="countAreaBottom" style="margin-top:10px; font-weight:bold;">
     指導者：0名 ／ その他：0名
   </div>
 
-  <!-- ✅ ボタンエリア -->
   <div style="display:flex; gap:10px;">
     <button type="button" id="submitBtn" onclick="submitData()" disabled>送信</button>
     <button type="button" onclick="clearAll()">クリア</button>
@@ -63,7 +61,13 @@ function setToday() {
   document.getElementById("targetDate").value = `${yyyy}-${mm}-${dd}`;
 }
 
-// ✅ カウント更新（＋ボタン制御）
+// ✅ 行クリックON/OFF
+function toggleCheck(index) {
+  const cb = document.querySelector(`input[name="att_${index}"]`);
+  cb.checked = !cb.checked;
+  updateCount();
+}
+
 function updateCount() {
   const checkboxes = document.querySelectorAll('input[type="checkbox"]');
   let teacherCount = 0;
@@ -80,14 +84,11 @@ function updateCount() {
   });
 
   const text = `指導者：${teacherCount}名 ／ その他：${normalCount}名`;
-  document.getElementById("countArea").innerText = text;
   document.getElementById("countAreaBottom").innerText = text;
 
-  // ✅ 0人なら送信不可
   document.getElementById("submitBtn").disabled = (teacherCount + normalCount === 0);
 }
 
-// ✅ クリアボタン
 function clearAll() {
   document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
   updateCount();
@@ -118,8 +119,13 @@ async function loadNames() {
 
       const row = `
         <div>
-          <label>
-            <input type="checkbox" name="att_${index}" data-teacher="${isTeacher}" onchange="updateCount()">
+          <label onclick="toggleCheck(${index})">
+            <input 
+              type="checkbox" 
+              name="att_${index}" 
+              data-teacher="${isTeacher}" 
+              onchange="updateCount()" 
+              onclick="event.stopPropagation();">
             ${name} ${teacherLabel}
           </label>
         </div>
@@ -128,7 +134,7 @@ async function loadNames() {
     });
 
     window.nameData = data;
-    updateCount(); // ✅ 初期状態更新
+    updateCount();
 
   } catch (e) {
     console.error("名前取得エラー:", e);
@@ -205,7 +211,7 @@ async function submitData() {
 
     alert("送信完了");
 
-    clearAll(); // ✅ リセット
+    clearAll();
 
   } catch (e) {
     console.error("送信エラー:", e);
