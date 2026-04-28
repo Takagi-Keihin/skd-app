@@ -11,10 +11,13 @@
     font-size: 16px;
     margin: 10px;
   }
-  label {
-    display: block;
-    padding: 8px 0;
+  .row {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
     cursor: pointer;
+  }
+  .row:active {
+    background: #f0f0f0;
   }
   input[type="checkbox"] {
     transform: scale(1.2);
@@ -29,6 +32,13 @@
     max-height: 60vh;
     overflow-y: auto;
   }
+
+  /* ✅ 日付を横並びに */
+  .dateRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 </style>
 
 </head>
@@ -36,8 +46,14 @@
 
 <h2>参加チェック</h2>
 
-<label>日付：</label>
-<input type="date" id="targetDate">
+<!-- ✅ 1行化 -->
+<div class="dateRow">
+  <label>日付：</label>
+  <input type="date" id="targetDate">
+</div>
+
+<!-- ✅ 余白追加（これが改行） -->
+<div style="margin-bottom: 10px;"></div>
 
 <form id="attendanceForm">
   <div id="nameList"></div>
@@ -59,13 +75,6 @@ function setToday() {
   const mm = ("0" + (today.getMonth() + 1)).slice(-2);
   const dd = ("0" + today.getDate()).slice(-2);
   document.getElementById("targetDate").value = `${yyyy}-${mm}-${dd}`;
-}
-
-// ✅ 行クリックON/OFF
-function toggleCheck(index) {
-  const cb = document.querySelector(`input[name="att_${index}"]`);
-  cb.checked = !cb.checked;
-  updateCount();
 }
 
 function updateCount() {
@@ -117,20 +126,25 @@ async function loadNames() {
       const isTeacher = item["指導者"] == 1 || item["指導者"] == "1";
       const teacherLabel = isTeacher ? "<span style='color:red;'>（指導者）</span>" : "";
 
-      const row = `
-        <div>
-          <label onclick="toggleCheck(${index})">
-            <input 
-              type="checkbox" 
-              name="att_${index}" 
-              data-teacher="${isTeacher}" 
-              onchange="updateCount()" 
-              onclick="event.stopPropagation();">
-            ${name} ${teacherLabel}
-          </label>
-        </div>
+      const row = document.createElement("div");
+      row.className = "row";
+
+      row.innerHTML = `
+        <input type="checkbox" name="att_${index}" data-teacher="${isTeacher}">
+        ${name} ${teacherLabel}
       `;
-      container.innerHTML += row;
+
+      row.addEventListener("click", function(e) {
+        if (e.target.tagName !== "INPUT") {
+          const cb = this.querySelector('input[type="checkbox"]');
+          cb.checked = !cb.checked;
+          updateCount();
+        }
+      });
+
+      row.querySelector('input').addEventListener("change", updateCount);
+
+      container.appendChild(row);
     });
 
     window.nameData = data;
