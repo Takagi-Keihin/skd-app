@@ -32,13 +32,9 @@
 </head>
 <body>
 
-  <!-- ✅ 追加：最上部 -->
   <h3>今月の稽古回数（終了済み含む）：<span id="currentCount">0</span>回</h3>
 
-  <!-- 既存（変更なし） -->
-  <h3>MVJに必要な稽古回数：<span id="thresholdCount">0</span>回（現在：<span id="currentCount">0</span>回）</h3>
-
-  <h3>終了済み 稽古回数：<span id="practiceDays">0</span>回</h3>
+  <h3>MVJに必要な稽古回数：<span id="thresholdCount">0</span>回</h3>
 
   <div class="progress-wrap">
     <div id="progressBar" class="progress"></div>
@@ -62,18 +58,25 @@
 <script>
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ffa50cff0e824a01815e70c8725d3ea8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=oMvFcwLLgRwkdXfFnUZpPrYtU06wBGT7VBBE1GTMgGk";
 
+/* ✅ 修正版 toDateKey（ここだけ変更） */
 function toDateKey(raw){
   if(!raw) return null;
 
-  if(!isNaN(raw)){
+  const num = Number(raw);
+
+  // ✅ Excelシリアル完全対応（文字列・小数・空白OK）
+  if(!Number.isNaN(num)){
     const excelEpoch = new Date(1899,11,30);
-    const d = new Date(excelEpoch.getTime() + Number(raw)*86400000);
+    const d = new Date(excelEpoch.getTime() + num * 86400000);
+
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth()+1).padStart(2,"0");
     const dd = String(d.getDate()).padStart(2,"0");
+
     return `${yyyy}/${mm}/${dd}`;
   }
 
+  // ✅ それ以外は通常日付
   const d = new Date(raw);
   if(isNaN(d.getTime())) return null;
 
