@@ -9,26 +9,25 @@
     th,td{border:1px solid #ccc;padding:8px;text-align:center;}
     th{background:#f2f2f2;}
     .muted{color:#666;font-size:12px;}
+    .error{color:#b00020;white-space:pre-wrap;margin-top:10px;}
 
-    /* ✅ 追加：達成率バー */
+    /* ✅ 達成率バー */
     .progress-wrap{
       width:100%;
       height:20px;
       background:#eee;
       border-radius:10px;
       overflow:hidden;
-      margin-top:5px;
+      margin-top:6px;
     }
-
     .progress{
       height:100%;
       width:0%;
-      background:#dc3545; /* 初期は未達（赤） */
+      background:#dc3545; /* 未達：赤 */
       transition:width 0.5s;
     }
-
     .progress.achieved{
-      background:#28a745; /* 達成時（緑） */
+      background:#28a745; /* 達成：緑 */
     }
   </style>
 </head>
@@ -36,19 +35,20 @@
 
   <h3>今月の成績一覧</h3>
 
-  <!-- ✅ Threshold -->
+  <!-- ✅ Threshold（当月の目標回数） -->
   <h3>今月の稽古回数（終了済み含む）：<span id="thresholdCount">0</span>回</h3>
 
-  <!-- ✅ 終了済み -->
+  <!-- ✅ 表示名変更 -->
   <h3>終了済み 稽古回数：<span id="practiceDays">0</span>回</h3>
 
-  <!-- ✅ 追加：進捗バー -->
+  <!-- ✅ 達成率バー -->
   <div class="progress-wrap">
     <div id="progressBar" class="progress"></div>
   </div>
   <div id="progressText" class="muted"></div>
 
   <div class="muted" id="debug"></div>
+  <div class="error" id="error" style="display:none"></div>
 
   <table id="resultTable">
     <thead>
@@ -64,14 +64,18 @@
 <script>
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ffa50cff0e824a01815e70c8725d3ea8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=oMvFcwLLgRwkdXfFnUZpPrYtU06wBGT7VBBE1GTMgGk";
 
-/* ✅ Threshold Flow */
-const THRESHOLD_FLOW_URL = "ここにThreshold Flow URL";
-
 function toDateKey(raw){
   if(!raw) return null;
 
-  if(typeof raw === "string" && /^\d{4}\/\d{2}\/\d{2}$/.test(raw)) return raw;
+  // "2026/5/1" も "2026/05/01" も許容
+  if(typeof raw === "string" && /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(raw)){
+    const [y,m,d] = raw.split("/");
+    const mm = String(m).padStart(2,"0");
+    const dd = String(d).padStart(2,"0");
+    return `${y}/${mm}/${dd}`;
+  }
 
+  // ISOなど
   const d = new Date(raw);
   if(isNaN(d.getTime())) return null;
 
@@ -83,75 +87,133 @@ function toDateKey(raw){
 
 function getMonthKey(){
   const d = new Date();
-  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/01`;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  return `${yyyy}/${mm}/01`;
+}
+
+/* ✅ 追加：空レスポンスでも落ちないJSONパース */
+async function safeJson(res){
+  const text = await res.text();
+  if(!text) return {};           // ← 空なら {} を返す
+  try{
+    return JSON.parse(text);
+  }catch(e){
+    return {};                   // ← JSONじゃなければ {} を返す
+  }
+}
+
+function setProgress(completed, threshold){
+  const bar = document.getElementById("progressBar");
+  const text = document.getElementById("progressText");
+
+  // Threshold未設定
+  if(!threshold || Number(threshold) <= 0){
+    bar.style.width = "0%";
+    bar.classList.remove("achieved");
+    text.textContent = "達成率：—（Threshold未設定）";
+    return;
+  }
+
+  const percentRaw = (completed / threshold) * 100;
+  const percent = Math.min(100, Math.round(percentRaw));
+  const remaining = Math.max(0, threshold - completed);
+
+  bar.style.width = percent + "%";
+
+  if(completed >= threshold){
+    bar.classList.add("achieved");
+    text.textContent = `達成率：${percent}%（達成）`;
+  }else{
+    bar.classList.remove("achieved");
+    text.textContent = `達成率：${percent}%（あと${remaining}回）`;
+  }
 }
 
 async function loadData(){
   const tbody = document.querySelector("#resultTable tbody");
   const debug = document.getElementById("debug");
-  const progressBar = document.getElementById("progressBar");
-  const progressText = document.getElementById("progressText");
+  const errorEl = document.getElementById("error");
 
   tbody.innerHTML = "";
   debug.textContent = "読み込み中…";
+  errorEl.style.display = "none";
+  errorEl.textContent = "";
 
   try{
+    const res = await fetch(FLOW_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({})
+    });
 
-    const [res1, res2] = await Promise.all([
-      fetch(FLOW_URL,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({}) }),
-      fetch(THRESHOLD_FLOW_URL,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({}) })
-    ]);
+    // HTTPエラーも見える化
+    if(!res.ok){
+      throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    }
 
-    const result = await res1.json();
-    const thresholdResult = await res2.json();
+    const result = await safeJson(res);
 
-    let data = result?.value ?? result?.body?.value ?? result?.body ?? result;
-    if(!Array.isArray(data)) data = [];
+    // ✅ 統合Flow想定：attendance / threshold が返る
+    let attendance = result?.attendance ?? [];
+    let thresholdData = result?.threshold ?? [];
 
-    let thresholdData = thresholdResult?.value ?? thresholdResult?.body?.value ?? thresholdResult?.body ?? thresholdResult;
-    if(!Array.isArray(thresholdData)) thresholdData = [];
+    // 互換：もし Flow が value/body/value 形式で返してくる場合
+    // （※あなたが統合済みなら基本ここは使われません）
+    if(!Array.isArray(attendance)){
+      attendance = result?.value ?? result?.body?.value ?? result?.body ?? [];
+    }
+    if(!Array.isArray(thresholdData)){
+      thresholdData = [];
+    }
 
-    let practiceDates = new Set();
-    let players = {};
-
-    /* ✅ Threshold取得 */
+    // ✅ Threshold（当月）取得
     const currentMonthKey = getMonthKey();
     let thresholdValue = 0;
 
-    thresholdData.forEach(item=>{
-      const monthKey = toDateKey(item?.Month);
-      if(monthKey === currentMonthKey){
-        thresholdValue = item?.Threshold ?? 0;
-      }
-    });
+    if(Array.isArray(thresholdData) && thresholdData.length > 0){
+      thresholdData.forEach(item=>{
+        const monthKey = toDateKey(item?.Month);
+        if(monthKey === currentMonthKey){
+          thresholdValue = Number(item?.Threshold ?? 0);
+        }
+      });
+    }
 
-    data.forEach(item => {
+    // ✅ 出席データ集計
+    let practiceDates = new Set();
+    let players = {};
 
-      const name  = item?.Name ?? item?.["名前"] ?? item?.Title;
-      const medal = item?.Medal ?? item?.["Medal"] ?? item?.["メダル"];
+    if(Array.isArray(attendance) && attendance.length > 0){
+      attendance.forEach(item => {
+        const name  = item?.Name ?? item?.["名前"] ?? item?.Title;
+        const medal = item?.Medal ?? item?.["Medal"] ?? item?.["メダル"];
 
-      const dateKey = toDateKey(item?.Date ?? item?.["Date"] ?? item?.["日付"]);
-      if(dateKey) practiceDates.add(dateKey);
+        const dateKey = toDateKey(item?.Date ?? item?.["Date"] ?? item?.["日付"]);
+        if(dateKey) practiceDates.add(dateKey);
 
-      if(!name || !dateKey) return;
+        if(!name || !dateKey) return;
 
-      if(!players[name]){
-        players[name] = { dates:new Set(), medals:0 };
-      }
+        if(!players[name]){
+          players[name] = { dates:new Set(), medals:0 };
+        }
 
-      players[name].dates.add(dateKey);
+        players[name].dates.add(dateKey);
 
-      if(medal && String(medal).includes("🏅")){
-        players[name].medals++;
-      }
-    });
+        if(medal && String(medal).includes("🏅")){
+          players[name].medals++;
+        }
+      });
+    }
 
+    // 表示用配列
     let final = Object.keys(players).map(name => ({
       name,
       days: players[name].dates.size,
       medals: players[name].medals
     }));
 
+    // ※既存ロジック維持（必要なら後で変更可能）
     final.sort((a,b)=>
       Number(b.days)-Number(a.days) ||
       Number(b.medals)-Number(a.medals)
@@ -159,39 +221,61 @@ async function loadData(){
 
     const completed = practiceDates.size;
 
+    // ✅ 上部数値表示
     document.getElementById("practiceDays").innerText = completed;
-    document.getElementById("thresholdCount").innerText = thresholdValue;
+    document.getElementById("thresholdCount").innerText = thresholdValue || 0;
 
-    /* ✅ 進捗率計算 */
-    let percent = thresholdValue > 0
-      ? Math.min(100, Math.round((completed / thresholdValue) * 100))
-      : 0;
+    // ✅ 達成率バー更新
+    setProgress(completed, thresholdValue);
 
-    progressBar.style.width = percent + "%";
-    progressText.textContent = `達成率：${percent}%`;
-
-    /* ✅ 色変更 */
-    if(percent >= 100){
-      progressBar.classList.add("achieved");
-    }else{
-      progressBar.classList.remove("achieved");
+    // ✅ 0件時の見せ方（ここが今回の修正ポイント）
+    if(!Array.isArray(attendance) || attendance.length === 0){
+      debug.textContent = "今月はまだ稽古が実施されていません（SharePointデータなし）";
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="3">今月のデータはまだありません</td>
+        </tr>
+      `;
+      return;
     }
 
+    // ✅ 人数0でもテーブルにメッセージ
     tbody.innerHTML = "";
-    final.forEach(p => {
-      tbody.innerHTML += `
+    if(final.length === 0){
+      tbody.innerHTML = `
         <tr>
-          <td>${p.name}</td>
-          <td>${p.days}</td>
-          <td>${p.medals}</td>
-        </tr>`;
-    });
+          <td colspan="3">今月のデータはまだありません</td>
+        </tr>
+      `;
+    }else{
+      final.forEach(p => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${p.name}</td>
+            <td>${p.days}</td>
+            <td>${p.medals}</td>
+          </tr>`;
+      });
+    }
 
-    debug.textContent = `取得件数: ${data.length} / 集計人数: ${final.length}`;
+    debug.textContent = `取得件数: ${attendance.length} / 集計人数: ${final.length}`;
 
   }catch(e){
     console.error(e);
-    document.getElementById("debug").textContent = "エラー: " + (e?.message ?? e);
+    errorEl.style.display = "block";
+    errorEl.textContent = "エラー: " + (e?.message ?? e);
+
+    // エラー時もUI破綻させない
+    document.getElementById("practiceDays").innerText = 0;
+    document.getElementById("thresholdCount").innerText = 0;
+    setProgress(0, 0);
+
+    const tbody = document.querySelector("#resultTable tbody");
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3">データ取得に失敗しました</td>
+      </tr>
+    `;
   }
 }
 
