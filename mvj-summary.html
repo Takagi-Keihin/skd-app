@@ -11,35 +11,42 @@
     .muted{color:#666;font-size:12px;}
     .error{color:#b00020;white-space:pre-wrap;margin-top:10px;}
 
-    .progress-wrap{
-      width:100%;
-      height:20px;
-      background:#eee;
-      border-radius:10px;
-      overflow:hidden;
-      margin-top:6px;
+    /* （表の中の達成率バーで使用） */
+    .cell-progress-container{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      justify-content:center;
     }
-    .progress{
+    .cell-progress-wrap{
+      width:90px;
+      height:12px;
+      background:#eee;
+      border-radius:6px;
+      overflow:hidden;
+    }
+    .cell-progress{
       height:100%;
       width:0%;
       background:#dc3545;
       transition:width 0.5s;
     }
-    .progress.achieved{
+    .cell-progress.achieved{
       background:#28a745;
+    }
+    .cell-percent{
+      font-size:12px;
+      color:#666;
+      min-width:34px;
+      text-align:right;
     }
   </style>
 </head>
 <body>
 
   <h3>今月の稽古回数（終了済み含む）：<span id="currentCount">0</span>回</h3>
-  <h3>MVJに必要な稽古回数：<span id="thresholdCount">0</span>回</h3>
-  <h3>終了済み 稽古回数：<span id="practiceDays">0</span>回</h3>
 
-  <div class="progress-wrap">
-    <div id="progressBar" class="progress"></div>
-  </div>
-  <div id="progressText" class="muted"></div>
+  <h3>MVJに必要な稽古回数：<span id="thresholdCount">0</span>回</h3>
 
   <div class="muted" id="debug"></div>
   <div class="error" id="error" style="display:none"></div>
@@ -50,7 +57,7 @@
         <th>名前</th>
         <th>稽古回数</th>
         <th>メダル</th>
-        <th>達成率</th> <!-- ✅ 追加 -->
+        <th>達成率</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -59,16 +66,21 @@
 <script>
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ffa50cff0e824a01815e70c8725d3ea8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=oMvFcwLLgRwkdXfFnUZpPrYtU06wBGT7VBBE1GTMgGk";
 
+/* ✅ 修正版 toDateKey */
 function toDateKey(raw){
   if(!raw) return null;
 
   const num = Number(raw);
+
+  // ✅ Excelシリアル完全対応（文字列・小数・空白OK）
   if(!Number.isNaN(num)){
     const excelEpoch = new Date(1899,11,30);
     const d = new Date(excelEpoch.getTime() + num * 86400000);
+
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth()+1).padStart(2,"0");
     const dd = String(d.getDate()).padStart(2,"0");
+
     return `${yyyy}/${mm}/${dd}`;
   }
 
@@ -96,31 +108,6 @@ async function safeJson(res){
   }
 }
 
-function setProgress(completed, threshold){
-  const bar = document.getElementById("progressBar");
-  const text = document.getElementById("progressText");
-
-  if(!threshold || Number(threshold) <= 0){
-    bar.style.width = "0%";
-    bar.classList.remove("achieved");
-    text.textContent = "達成率：—";
-    return;
-  }
-
-  const percent = Math.min(100, Math.round((completed/threshold)*100));
-  const remaining = Math.max(0, threshold - completed);
-
-  bar.style.width = percent + "%";
-
-  if(completed >= threshold){
-    bar.classList.add("achieved");
-    text.textContent = `達成率：${percent}%（達成）`;
-  }else{
-    bar.classList.remove("achieved");
-    text.textContent = `達成率：${percent}%（あと${remaining}回）`;
-  }
-}
-
 async function loadData(){
   const tbody = document.querySelector("#resultTable tbody");
   const debug = document.getElementById("debug");
@@ -139,38 +126,49 @@ async function loadData(){
 
     const result = await safeJson(res);
 
-    let attendance = result?.attendance ?? [];
-    let thresholdData = result?.threshold ?? [];
+    let attendance =
+      result?.attendance ??
+      result?.body?.attendance ??
+      result?.value ??
+      result?.body?.value ??
+      [];
 
-    let practiceDates = new Set();
+    let thresholdData =
+      result?.threshold ??
+      result?.body?.threshold ??
+      result?.threshold?.value ??
+      result?.body?.threshold?.value ??
+      [];
+
     let players = {};
 
     let thresholdValue = 0;
     let currentCountValue = 0;
 
-    // ✅ 修正ポイント（Countはそのまま取得）
-    if(thresholdData.length > 0){
+    // ✅ Countはそのまま取得（Month一致に依存しない）
+    if(Array.isArray(thresholdData) && thresholdData.length > 0){
       currentCountValue = Number(thresholdData[0]?.Count ?? 0);
     }
 
+    // ✅ Thresholdは月一致で取得（必要なら）
     const currentMonthKey = getMonthKey();
-
-    thresholdData.forEach(item=>{
-      const monthKey = toDateKey(item?.Month);
-      if(monthKey === currentMonthKey){
-        thresholdValue = Number(item?.Threshold ?? 0);
-      }
-    });
+    if(Array.isArray(thresholdData)){
+      thresholdData.forEach(item=>{
+        const monthKey = toDateKey(item?.Month);
+        if(monthKey === currentMonthKey){
+          thresholdValue = Number(item?.Threshold ?? 0);
+        }
+      });
+    }
 
     document.getElementById("currentCount").innerText = currentCountValue;
+    document.getElementById("thresholdCount").innerText = thresholdValue;
 
     attendance.forEach(item => {
       const name  = item?.Name ?? item?.["名前"] ?? item?.Title;
       const medal = item?.Medal ?? item?.["Medal"] ?? item?.["メダル"];
 
       const dateKey = toDateKey(item?.Date ?? item?.["Date"] ?? item?.["日付"]);
-      if(dateKey) practiceDates.add(dateKey);
-
       if(!name || !dateKey) return;
 
       if(!players[name]){
@@ -195,13 +193,6 @@ async function loadData(){
       Number(b.medals)-Number(a.medals)
     );
 
-    const completed = practiceDates.size;
-
-    document.getElementById("practiceDays").innerText = completed;
-    document.getElementById("thresholdCount").innerText = thresholdValue;
-
-    setProgress(completed, thresholdValue);
-
     if(!attendance.length){
       debug.textContent = "今月はまだ稽古が実施されていません";
       tbody.innerHTML = `
@@ -214,18 +205,25 @@ async function loadData(){
 
     tbody.innerHTML = "";
     final.forEach(p => {
-
-      // ✅ 個人達成率
-      let percent = thresholdValue > 0
-        ? Math.round((p.days / thresholdValue) * 100)
+      const percent = (thresholdValue > 0)
+        ? Math.min(100, Math.round((p.days / thresholdValue) * 100))
         : 0;
+
+      const achievedClass = (thresholdValue > 0 && p.days >= thresholdValue) ? "achieved" : "";
 
       tbody.innerHTML += `
         <tr>
           <td>${p.name}</td>
           <td>${p.days}</td>
           <td>${p.medals}</td>
-          <td>${percent}%</td>
+          <td>
+            <div class="cell-progress-container">
+              <div class="cell-progress-wrap">
+                <div class="cell-progress ${achievedClass}" style="width:${percent}%;"></div>
+              </div>
+              <span class="cell-percent">${thresholdValue > 0 ? (percent + "%") : "—"}</span>
+            </div>
+          </td>
         </tr>`;
     });
 
