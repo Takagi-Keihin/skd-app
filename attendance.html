@@ -17,9 +17,6 @@ th{background:#f6f6f6;text-align:left}
 
 <body>
 
-<button id="refreshBtn">更新</button>
-<button type="button" onclick="location.href='https://polite-mud-0e4a7f000.7.azurestaticapps.net/mvj-summary.html'">今月のMVJサマリー</button>
-
 <div id="error" class="error" style="display:none"></div>
 
 <!-- ✅ 上段 -->
@@ -57,7 +54,7 @@ const summaryBody = document.getElementById("summaryBody");
 const nameBody    = document.getElementById("nameBody");
 
 const esc = s =>
-String(s ?? "").replace(/[&<>"']/g,c=>({
+String(s ?? "").replace(/[&<>\"']/g,c=>({
 "&":"&amp;","<":"&lt;",">":"&gt;",
 '"':"&quot;","'":"&#39;"
 }[c]));
