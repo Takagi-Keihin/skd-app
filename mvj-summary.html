@@ -9,12 +9,45 @@
     th,td{border:1px solid #ccc;padding:8px;text-align:center;}
     th{background:#f2f2f2;}
     .muted{color:#666;font-size:12px;}
+
+    /* ✅ 追加：達成率バー */
+    .progress-wrap{
+      width:100%;
+      height:20px;
+      background:#eee;
+      border-radius:10px;
+      overflow:hidden;
+      margin-top:5px;
+    }
+
+    .progress{
+      height:100%;
+      width:0%;
+      background:#dc3545; /* 初期は未達（赤） */
+      transition:width 0.5s;
+    }
+
+    .progress.achieved{
+      background:#28a745; /* 達成時（緑） */
+    }
   </style>
 </head>
 <body>
 
   <h3>今月の成績一覧</h3>
-  <h3>稽古日数：<span id="practiceDays">0</span>日</h3>
+
+  <!-- ✅ Threshold -->
+  <h3>今月の稽古回数（終了済み含む）：<span id="thresholdCount">0</span>回</h3>
+
+  <!-- ✅ 終了済み -->
+  <h3>終了済み 稽古回数：<span id="practiceDays">0</span>回</h3>
+
+  <!-- ✅ 追加：進捗バー -->
+  <div class="progress-wrap">
+    <div id="progressBar" class="progress"></div>
+  </div>
+  <div id="progressText" class="muted"></div>
+
   <div class="muted" id="debug"></div>
 
   <table id="resultTable">
@@ -31,14 +64,14 @@
 <script>
 const FLOW_URL = "https://defaultf1d9068e3b94400c90302c92ac8dbc.f6.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ffa50cff0e824a01815e70c8725d3ea8/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=oMvFcwLLgRwkdXfFnUZpPrYtU06wBGT7VBBE1GTMgGk";
 
+/* ✅ Threshold Flow */
+const THRESHOLD_FLOW_URL = "ここにThreshold Flow URL";
+
 function toDateKey(raw){
-  // raw が "2026/04/09" でも "2026-04-09T..." でもOKにする
   if(!raw) return null;
 
-  // すでに yyyy/MM/dd の文字列ならそのまま使う（安全）
   if(typeof raw === "string" && /^\d{4}\/\d{2}\/\d{2}$/.test(raw)) return raw;
 
-  // ISOなどは Date化して yyyy-MM-dd -> yyyy/MM/dd に揃える
   const d = new Date(raw);
   if(isNaN(d.getTime())) return null;
 
@@ -48,34 +81,57 @@ function toDateKey(raw){
   return `${yyyy}/${mm}/${dd}`;
 }
 
+function getMonthKey(){
+  const d = new Date();
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/01`;
+}
+
 async function loadData(){
   const tbody = document.querySelector("#resultTable tbody");
   const debug = document.getElementById("debug");
+  const progressBar = document.getElementById("progressBar");
+  const progressText = document.getElementById("progressText");
+
   tbody.innerHTML = "";
   debug.textContent = "読み込み中…";
 
   try{
-    const res = await fetch(FLOW_URL,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({})
-    });
 
-    const result = await res.json();
+    const [res1, res2] = await Promise.all([
+      fetch(FLOW_URL,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({}) }),
+      fetch(THRESHOLD_FLOW_URL,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({}) })
+    ]);
 
-    // 配列をできるだけ確実に取り出す
+    const result = await res1.json();
+    const thresholdResult = await res2.json();
+
     let data = result?.value ?? result?.body?.value ?? result?.body ?? result;
     if(!Array.isArray(data)) data = [];
+
+    let thresholdData = thresholdResult?.value ?? thresholdResult?.body?.value ?? thresholdResult?.body ?? thresholdResult;
+    if(!Array.isArray(thresholdData)) thresholdData = [];
 
     let practiceDates = new Set();
     let players = {};
 
+    /* ✅ Threshold取得 */
+    const currentMonthKey = getMonthKey();
+    let thresholdValue = 0;
+
+    thresholdData.forEach(item=>{
+      const monthKey = toDateKey(item?.Month);
+      if(monthKey === currentMonthKey){
+        thresholdValue = item?.Threshold ?? 0;
+      }
+    });
+
     data.forEach(item => {
+
       const name  = item?.Name ?? item?.["名前"] ?? item?.Title;
       const medal = item?.Medal ?? item?.["Medal"] ?? item?.["メダル"];
 
       const dateKey = toDateKey(item?.Date ?? item?.["Date"] ?? item?.["日付"]);
-      if(dateKey) practiceDates.add(dateKey);   // ← dateKey を作った後に add
+      if(dateKey) practiceDates.add(dateKey);
 
       if(!name || !dateKey) return;
 
@@ -85,29 +141,42 @@ async function loadData(){
 
       players[name].dates.add(dateKey);
 
-      // 🎖 の判定（Variation Selector なども吸収）
       if(medal && String(medal).includes("🏅")){
         players[name].medals++;
       }
     });
 
-    // 表示用配列
     let final = Object.keys(players).map(name => ({
       name,
       days: players[name].dates.size,
       medals: players[name].medals
     }));
 
-    // メダル降順 → 同数なら稽古日数降順
-final.sort((a,b)=>
-Number(b.days)-Number(a.days) ||
-Number(b.medals)-Number(a.medals)
-);
+    final.sort((a,b)=>
+      Number(b.days)-Number(a.days) ||
+      Number(b.medals)-Number(a.medals)
+    );
 
-    // 稽古日数（ユニーク日付数）表示
-    document.getElementById("practiceDays").innerText = practiceDates.size;
+    const completed = practiceDates.size;
 
-    // 表描画
+    document.getElementById("practiceDays").innerText = completed;
+    document.getElementById("thresholdCount").innerText = thresholdValue;
+
+    /* ✅ 進捗率計算 */
+    let percent = thresholdValue > 0
+      ? Math.min(100, Math.round((completed / thresholdValue) * 100))
+      : 0;
+
+    progressBar.style.width = percent + "%";
+    progressText.textContent = `達成率：${percent}%`;
+
+    /* ✅ 色変更 */
+    if(percent >= 100){
+      progressBar.classList.add("achieved");
+    }else{
+      progressBar.classList.remove("achieved");
+    }
+
     tbody.innerHTML = "";
     final.forEach(p => {
       tbody.innerHTML += `
@@ -119,6 +188,7 @@ Number(b.medals)-Number(a.medals)
     });
 
     debug.textContent = `取得件数: ${data.length} / 集計人数: ${final.length}`;
+
   }catch(e){
     console.error(e);
     document.getElementById("debug").textContent = "エラー: " + (e?.message ?? e);
